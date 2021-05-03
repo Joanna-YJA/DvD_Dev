@@ -72,6 +72,9 @@ ffmpeg -framerate 60 -i "D:/Project Files/CounterSwarmDIF/Files/Slides/Screensho
 
 
 
+** Before you open the java project, do the following first:
+1. Rename the pacakages
+2. Copy the specified large files below
 
 Large Files directories:
 - Download the following large files from https://drive.google.com/drive/folders/13XjkhbjHvpFLrzAp_mK9lkg2Ipfy1iwY, and place them in the specified directories below before opening the project
