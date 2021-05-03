@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Delete 3 resources" deleteContents="true" description="Delete 3 resources" element1="/gov.dsta.dvd.dif.video" element2="/gov.dsta.luciad" element3="/gov.dsta.vca" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="3" stamp="1579141459153"/>
+</session>

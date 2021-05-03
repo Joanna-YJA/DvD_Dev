@@ -1,0 +1,4 @@
+eclipse.preferences.version=1
+externalMigrateFromAuthorizationDatabase/isMigrated=true
+migrateFromAuthorizationDatabase/isMigrated=true
+repositories/00f350860738001a1513946a5cf372de=00f350860738001a1513946a5cf372de;https\://10.10.10.85/svn/DVD;https\://10.10.10.85/svn/DVD;branches;tags;trunk;true;2823f5b3-b689-514f-a39a-b63c61b52373;https\://10.10.10.85/svn/DVD;;false;;;0

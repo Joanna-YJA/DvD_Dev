@@ -1,0 +1,4 @@
+eclipse.preferences.version=1
+externalMigrateFromAuthorizationDatabase/isMigrated=true
+migrateFromAuthorizationDatabase/isMigrated=true
+repositories/5021afa3dd98001b1683a033c2321fc1=5021afa3dd98001b1683a033c2321fc1;https\://10.10.10.85/svn/DVD/gov.dsta.dvd.dif.video;https\://10.10.10.85/svn/DVD/gov.dsta.dvd.dif.video;branches;tags;trunk;true;2823f5b3-b689-514f-a39a-b63c61b52373;https\://10.10.10.85/svn/DVD;;false;;;0

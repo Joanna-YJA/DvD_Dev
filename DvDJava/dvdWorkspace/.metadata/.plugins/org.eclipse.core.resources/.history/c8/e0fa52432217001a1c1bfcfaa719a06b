@@ -1,0 +1,114 @@
+package gov.dsta.dvd.dif.video.udp;
+
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+
+import gov.dsta.dvd.dif.video.udp.Command;
+
+public class TelemeteryMessage extends Command{
+	private int id = 0;
+	private double longitude;
+	private double latitude;
+	private double altitude;
+	private double yaw = 0;
+	private double pitch = 0;
+	private double roll = 0;
+	
+	
+	public int getId() {
+		return id;
+	}
+
+	public void setId(int id) {
+		this.id = id;
+	}
+
+	public double getLongitude() {
+		return longitude;
+	}
+
+	public void setLongitude(double longitude) {
+		this.longitude = longitude;
+	}
+
+	public double getLatitude() {
+		return latitude;
+	}
+
+	public void setLatitude(double latitude) {
+		this.latitude = latitude;
+	}
+
+	public double getAltitude() {
+		return altitude;
+	}
+
+	public void setAltitude(double altitude) {
+		this.altitude = altitude;
+	}
+
+	public double getYaw() {
+		return yaw;
+	}
+
+	public void setYaw(double yaw) {
+		this.yaw = yaw;
+	}
+
+	public double getPitch() {
+		return pitch;
+	}
+
+	public void setPitch(double pitch) {
+		this.pitch = pitch;
+	}
+
+	public double getRoll() {
+		return roll;
+	}
+
+	public void setRoll(double roll) {
+		this.roll = roll;
+	}
+
+	@Override
+	public String toString() {
+		return "TelemeteryMessage [id=" + id + ", longitude=" + longitude + ", latitude=" + latitude + ", altitude="
+				+ altitude + ", yaw=" + yaw + ", pitch=" + pitch + ", roll=" + roll + "]";
+	}
+	
+	
+
+	@Override
+	public byte[] getData() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void readData(byte[] data) {
+		ByteArrayInputStream bytearrypacket = new ByteArrayInputStream(data);
+		DataInputStream dataInputpacket = new DataInputStream(bytearrypacket);
+		try{
+			
+			id = dataInputpacket.readInt();
+			longitude = dataInputpacket.readDouble();
+			latitude = dataInputpacket.readDouble();
+			altitude = dataInputpacket.readDouble();
+			yaw = dataInputpacket.readDouble();
+			pitch = dataInputpacket.readDouble();
+			roll = dataInputpacket.readDouble();
+
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+		
+	}
+
+	@Override
+	public String getTopic() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}

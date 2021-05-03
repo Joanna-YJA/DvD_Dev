@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<qualifiedTypeNameHistroy>
+<fullyQualifiedTypeName name="com.fazecast.jSerialComm.SerialPort"/>
+<fullyQualifiedTypeName name="java.util.Scanner"/>
+<fullyQualifiedTypeName name="com.fazecast.jSerialComm.SerialPortDataListener"/>
+<fullyQualifiedTypeName name="com.fazecast.jSerialComm.SerialPortEvent"/>
+<fullyQualifiedTypeName name="com.fazecast.jSerialComm.SerialPortIOException"/>
+<fullyQualifiedTypeName name="java.io.InputStream"/>
+<fullyQualifiedTypeName name="com.fazecast.jSerialComm.SerialPortMessageListener"/>
+<fullyQualifiedTypeName name="com.fazecast.jSerialComm.SerialPortPacketListener"/>
+<fullyQualifiedTypeName name="java.lang.Integer"/>
+<fullyQualifiedTypeName name="gov.dsta.dvd.dif.video.Main"/>
+<fullyQualifiedTypeName name="javafx.scene.shape.Rectangle"/>
+<fullyQualifiedTypeName name="java.awt.Rectangle"/>
+<fullyQualifiedTypeName name="java.util.ArrayList"/>
+<fullyQualifiedTypeName name="java.util.List"/>
+<fullyQualifiedTypeName name="java.awt.Point"/>
+</qualifiedTypeNameHistroy>

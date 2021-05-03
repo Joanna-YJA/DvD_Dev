@@ -1,0 +1,14 @@
+package gov.dsta.luciad.interfaces;
+
+import kamel.model.IKGraphic;
+
+public abstract class KGraphic implements IKGraphic{
+
+
+	
+	public abstract IKPoint getLocation();
+	
+	
+
+
+}

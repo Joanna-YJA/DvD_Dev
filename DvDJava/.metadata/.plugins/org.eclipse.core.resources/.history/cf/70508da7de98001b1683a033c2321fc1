@@ -1,0 +1,12 @@
+package gov.dsta.luciad.interfaces;
+
+public abstract class KGraphic {
+
+
+	
+	public abstract IKPoint getLocation();
+	
+	
+
+
+}

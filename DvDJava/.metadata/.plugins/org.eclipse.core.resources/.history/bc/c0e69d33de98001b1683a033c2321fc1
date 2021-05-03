@@ -1,0 +1,175 @@
+package kamel.model;
+
+import kamel.util.KUtil;
+
+public class KPoint extends KSpatial implements IKPoint {
+	
+	public static final double METRES_X_PER_DEGREE = 2.0 * Math.PI * WGS84_SEMI / 360.0;
+	public static final double METRES_Y_PER_DEGREE = 2.0 * Math.PI * WGS84_SEMI * (1.0 - 1.0/WGS84_INV_FLAT) / 360.0;
+
+	protected double _x = 0;
+	protected double _y = 0;
+	protected double _z = 0;
+	
+	public KPoint() {
+		this(0, 0, 0);
+	}
+	
+	public KPoint(double x, double y) {
+		this(x, y, 0);
+	}
+	
+	public KPoint(double x, double y, double z) {
+		_x = x;
+		_y = y;
+		_z = z;
+	}
+
+	@Override
+	public IKClone clone() {
+		// TODO Auto-generated method stub
+		
+		return clone("", 0, 0);
+	}
+
+	@Override
+	public IKClone clone(String id, double dx, double dy) {
+		// TODO Auto-generated method stub
+		KPoint duplicate = new KPoint();
+		duplicate.copy(this);
+		duplicate.move(dx, dy);
+		return duplicate;
+	}
+	
+	@Override
+	public IKPoint toScreen(double scale, IKPoint basePoint) {
+		// TODO Auto-generated method stub
+		if (basePoint == null)
+			return null;
+			
+		double pixelX = KUtil.toPixelX(getXInMetre(), basePoint.getXInMetre(), scale);
+		double pixelY = KUtil.toPixelY(getYInMetre(), basePoint.getYInMetre(), scale);
+			
+		return new KPoint(pixelX, pixelY);
+	}
+
+	@Override
+	public void copy(IKPoint src) {
+		// TODO Auto-generated method stub
+		if (src == null)
+			return;
+		
+		_x = src.getX();
+		_y = src.getY();
+		_z = src.getZ();
+		_cs = src.getCoordinateSystem();
+	}
+	
+	@Override
+	public void move(double dx, double dy) {
+		// TODO Auto-generated method stub
+		_x += dx;
+		_y += dy;
+	}
+	
+	@Override
+	public double getXInMetre() {
+		if (_cs == GEO_WGS84_CODE)
+			return _x * METRES_X_PER_DEGREE;
+		
+		return _x;
+	}
+	
+	@Override
+	public double getYInMetre() {
+		
+		if (_cs == GEO_WGS84_CODE)
+			return _y * METRES_Y_PER_DEGREE;
+		
+		return _y;
+	}
+	
+	@Override
+	public double getX() {
+		// TODO Auto-generated method stub
+		return _x;
+	}
+
+	@Override
+	public void setX(double x) {
+		// TODO Auto-generated method stub
+		_x = x;
+	}
+
+	@Override
+	public double getY() {
+		// TODO Auto-generated method stub
+		return _y;
+	}
+
+	@Override
+	public void setY(double y) {
+		// TODO Auto-generated method stub
+		_y = y;
+	}
+
+	@Override
+	public double getZ() {
+		// TODO Auto-generated method stub
+		return _z;
+	}
+
+	@Override
+	public void setZ(double z) {
+		// TODO Auto-generated method stub
+		_z = z;
+	}
+	
+	public static IKPoint toMap(double scale, IKPoint basePoint, double pixelX, double pixelY) {
+		if (basePoint == null)
+			return null;
+		
+		double earthX = KUtil.toMapX(pixelX, basePoint.getXInMetre(), scale);
+		double earthY = KUtil.toMapY(pixelY, basePoint.getYInMetre(), scale);
+		double x = earthX / METRES_X_PER_DEGREE;
+		double y = earthY / METRES_Y_PER_DEGREE;
+		
+		return new KPoint(x, y);
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		long temp;
+		temp = Double.doubleToLongBits(_x);
+		Long longResult = (temp ^ (temp >>> 32));
+		result = prime * result + longResult.intValue();
+		temp = Double.doubleToLongBits(_y);
+		longResult = (temp ^ (temp >>> 32));
+		result = prime * result + longResult.intValue();
+		temp = Double.doubleToLongBits(_z);
+		longResult = (temp ^ (temp >>> 32));
+		result = prime * result + longResult.intValue();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		KPoint other = (KPoint) obj;
+		if (Double.doubleToLongBits(_x) != Double.doubleToLongBits(other._x))
+			return false;
+		if (Double.doubleToLongBits(_y) != Double.doubleToLongBits(other._y))
+			return false;
+		if (Double.doubleToLongBits(_z) != Double.doubleToLongBits(other._z))
+			return false;
+		return true;
+	}
+	
+}

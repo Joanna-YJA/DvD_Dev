@@ -1,0 +1,177 @@
+package kamel.graphic;
+
+import java.util.Vector;
+
+import kamel.model.IKAttachment;
+import kamel.model.IKExtendedGraphic;
+import kamel.model.IKExtension;
+import kamel.model.IKLabel;
+import kamel.model.IKPoint;
+//import kamel.model.IKSpatial;
+import kamel.model.KModel;
+//import kamel.model.KPoint;
+import kamel.style.IKPalette;
+import kamel.style.KPalette;
+import kamel.util.KUtil;
+import kamel.visual.IKVisualAttribute;
+import kamel.visual.KVisualAttribute;
+
+public abstract class KGraphic {
+
+
+	
+	public abstract IKPoint getLocation();
+	
+	@Override
+	public void addExtension(IKExtension extension) {
+		if (extension == null)
+			return;
+		
+		if (_extensions == null)
+			_extensions = new Vector<IKExtension>();
+			
+		_extensions.add(extension);
+	}
+	
+	@Override
+	public IKExtension getExtension(String type) {
+		
+		if (_extensions == null)
+			return null;
+		
+		String extensionType = KUtil.isNullOrEmpty(type)? IKExtension.DEFAULT_EXTENSION_TYPE : type;
+		
+		int count = _extensions.size();
+		for (int i = 0; i < count; i++) {
+			IKExtension extension = _extensions.get(i);
+			if (extensionType.equals(extension.getType()))
+				return extension;
+		}
+		
+		return null;
+	}
+	
+	public String getLabelText() {
+		if (_label != null)
+			return _label.getText();
+			
+		return _name;
+	}
+	
+	public String getDescription() {
+		if (_label != null)
+			return _label.getDescription();
+			
+		return _name;
+	}
+	
+//	public KGraphic withSpatial(IKSpatial spatial) {
+//		_spatial = spatial;
+//		return this;
+//	}
+	
+	public KGraphic withExtension(IKExtension extension) {
+		
+		addExtension(extension);
+		return this;
+	}
+	
+	public KGraphic withPalette(IKPalette palette) {
+		_palette = palette;
+		return this;
+	}
+	
+	public KGraphic withAttribute(IKVisualAttribute attribute) {
+		_attribute = attribute;
+		return this;
+	}
+
+	public KGraphic withLabel(IKLabel label) {
+		_label = label;
+		return this;
+	}
+
+	public KGraphic withAttachment(IKAttachment attachment) {
+		_attachment = attachment;
+		return this;
+	}
+	
+	@Override
+	public String getId() {
+		return _id;
+	}
+
+	@Override
+	public void setId(String id) {
+		_id = id;
+	}
+
+	@Override
+	public String getGroup() {
+		return _group;
+	}
+
+	@Override
+	public void setGroup(String group) {
+		_group = group;
+	}
+
+//	@Override
+//	public IKSpatial getSpatial() {
+//		return _spatial;
+//	}
+//
+//	@Override
+//	public void setSpatial(IKSpatial spatial) {
+//		_spatial = spatial;
+//	}
+
+	@Override
+	public IKLabel getLabel() {
+		return _label;
+	}
+
+	@Override
+	public void setLabel(IKLabel label) {
+		_label = label;
+	}
+	
+	@Override
+	public IKPalette getPalette() {
+		return _palette;
+	}
+
+	@Override
+	public void setPalette(IKPalette palette) {
+		_palette = palette;
+	}
+
+	@Override
+	public IKAttachment getAttachment() {
+		return _attachment;
+	}
+
+	@Override
+	public void setAttachment(IKAttachment attachment) {
+		_attachment = attachment;
+	}
+
+	@Override
+	public IKVisualAttribute getAttribute() {
+		return _attribute;
+	}
+
+	@Override
+	public void setAttribute(IKVisualAttribute attribute) {
+		_attribute = attribute;
+	}
+	@Override
+	public KBound getBound() {
+		return bound;
+	}
+	@Override
+	public void setBound(KBound bound) {
+		this.bound = bound;
+	}
+
+}

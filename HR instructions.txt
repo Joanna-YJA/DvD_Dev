@@ -1,0 +1,20 @@
+Dependencies
+- Copy out Eclipse in C drive
+- Install Java 8
+- Set 192.168.XXX.XXX in iPV4, Advanced Settings --> This is for Luciad to run
+- Install loop back adapter
+
+Main code is in Main.Java
+- Take note of CAMERA_PITCH_OFFSET --> The offset DEGREE of the camera
+- Webcam Player will start --> It will break the code if the Webcam is not plugged in
+- addOrUpdateTarget(id, lat, lon) --> Insert the Lat Lon of the enemy drone
+- setCamera() --> to set the pose of the camera given position and roll pitch yaw
+- UDPPORT for telemetry
+
+TelemetryMessage.Java
+- Contains all the functions for reading the telemetry
+
+DetectorService.java (under gov.dsta.vca)
+- UDPPORT is the port that the program is listening for Ling Ling 
+- drawDetection() --> Draws to the video
+- DetectionMessage detection is the screen coordinates from Ling Ling
