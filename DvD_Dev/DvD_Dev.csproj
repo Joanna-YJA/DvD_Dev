@@ -7,8 +7,8 @@
     <ProjectGuid>{EC28223F-16E8-4BCE-8DBC-B04562514927}</ProjectGuid>
     <OutputType>AppContainerExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>DJIWSDKDemo</RootNamespace>
-    <AssemblyName>DJIWSDKDemo</AssemblyName>
+    <RootNamespace>DvD_Dev</RootNamespace>
+    <AssemblyName>DvD_Dev</AssemblyName>
     <DefaultLanguage>en-US</DefaultLanguage>
     <TargetPlatformIdentifier>UAP</TargetPlatformIdentifier>
     <TargetPlatformVersion Condition=" '$(TargetPlatformVersion)' == '' ">10.0.17134.0</TargetPlatformVersion>
