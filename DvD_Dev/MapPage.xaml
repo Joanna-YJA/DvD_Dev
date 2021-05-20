@@ -1,0 +1,22 @@
+﻿<Page
+    x:Class="DvD_Dev.MapPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:DvD_Dev"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    xmlns:maps="using:Windows.UI.Xaml.Controls.Maps"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+        <maps:MapControl Name="Map"  
+           Style="Terrain"                          
+           ZoomInteractionMode="GestureAndControl"  
+           TiltInteractionMode="GestureAndControl"    
+            MapTapped="Map_MapTapped"
+           MapServiceToken="AB1RwJlIPPw8H2Ba7PdE~mAZHEzsO3bIp89cIuHQXRw~Ai-u8XI3BEJ__8WgQYmBurX_NXOzbxHFuJXIxNwCJwTsAZaYe_4SVBstbabI5uuE">
+        </maps:MapControl>
+    </Grid>
+</Page>

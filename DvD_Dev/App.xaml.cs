@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DJI.WindowsSDK;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -30,7 +31,27 @@ namespace DvD_Dev
         {
             this.InitializeComponent();
             this.Suspending += OnSuspending;
+
+            DJISDKManager.Instance.SDKRegistrationStateChanged += Instance_SDKRegistrationEvent;
+            //Replace app key with the real key registered. Make sure that the key is matched with your application's package id.
+            DJISDKManager.Instance.RegisterApp("134a0689605a1fdbace699ba");
         }
+
+        //Callback of SDKRegistrationEvent
+        private void Instance_SDKRegistrationEvent(SDKRegistrationState state, SDKError resultCode)
+        {
+            if (resultCode == SDKError.NO_ERROR)
+            {
+                System.Diagnostics.Debug.WriteLine("Register app successfully.");
+
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("SDK register failed, the error is: ");
+                System.Diagnostics.Debug.WriteLine(resultCode.ToString());
+            }
+        }
+
 
         /// <summary>
         /// Invoked when the application is launched normally by the end user.  Other entry points
