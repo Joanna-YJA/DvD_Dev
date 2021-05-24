@@ -11,7 +11,8 @@
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-        <maps:MapControl Name="Map"  
+        <maps:MapControl 
+           Name="Map"  
            Style="Terrain"                          
            ZoomInteractionMode="GestureAndControl"  
            TiltInteractionMode="GestureAndControl"    
