@@ -76,7 +76,7 @@ namespace DvD_Dev
         /// <returns>
         /// List of waypoints that represents geodesic curve.
         /// </returns>
-        public static void ToGeodesic(List<Waypoint> points, int numSegments)
+        public static void ToGeodesicFigure(List<Waypoint> points, int numSegments)
         {
             var locs = new List<Waypoint>();
             for (var i = 0; i < points.Count - 1; i++)

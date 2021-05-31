@@ -24,6 +24,7 @@ using DJI.WindowsSDK.Components;
 using DJI.WindowsSDK.Mission.Waypoint;
 using Windows.Services.Maps;
 using static DvD_Dev.SpatialMath;
+using static DvD_Dev.FootprintCalculator;
 
 
 // The Blank Page item template is documented at https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
@@ -37,7 +38,6 @@ namespace DvD_Dev
     {
         List<MapElement> Landmarks;
         MapElementsLayer LandmarksLayer;
-        double heading;
 
         
         uint ProductIndex = 0, ComponentIndex = 0;
@@ -49,44 +49,46 @@ namespace DvD_Dev
         public MapPage()
         {
             this.InitializeComponent();
-            initializeMap();
+            InitializeMap();
         }
 
-        private async void initializeMap()
+        //When map is loaded(navigated to), set the starting location of the map
+        override
+        protected void OnNavigatedTo(NavigationEventArgs e)
         {
-            Landmarks = new List<MapElement>();
-            LandmarksLayer = new MapElementsLayer
-            {
-                ZIndex = 1,
-                MapElements = Landmarks
-            };
+            RefreshMapLayer();
+            SetMapLoc();
+        }
 
-            Map.Layers.Add(LandmarksLayer);
+        private void Map_MapTapped(MapControl sender, MapInputEventArgs args)
+        {
+            BasicGeoposition tappedPos = args.Location.Position;
+            DropPin(tappedPos, "tapped" );
+            //CreateMission(tappedPos);
+            List<BasicGeoposition> camFootprint = FindFootprintCorners(tappedPos);
+            DrawFigure(camFootprint);
+        }
 
-            //Handler that executes everytime drone location changes
-            fcHandler = DJISDKManager.Instance.ComponentManager.GetFlightControllerHandler(ProductIndex, ComponentIndex);
-            fcHandler.AircraftLocationChanged += printLocation;
+        private void InitializeMap()
+        {
+            InitializeHandlers();
+            NewMapLayer();
+            InitializeDefaultStartLoc();
+        }
 
-            wpHandler = DJISDKManager.Instance.WaypointMissionManager.GetWaypointMissionHandler(ProductIndex);
-
+        private async void InitializeDefaultStartLoc()
+        {
             //TODO: set home location flexibly
             LocationCoordinate2D startCoord;
             startCoord.latitude = (startLat / 1E6);
             startCoord.longitude = (startLon / 1E6);
             await fcHandler.SetHomeLocationAsync(startCoord);
-
-
         }
 
-        private void printLocation(Object sender, LocationCoordinate2D? location)
+        private async void SetMapLoc()
         {
-            string status = "Location changed to " + location.ToString();
-            System.Diagnostics.Debug.WriteLine(status);
-        }
-        //When map is loaded(navigated to), set the starting location of the map
-        override
-        protected async void OnNavigatedTo(NavigationEventArgs e)
-        {
+            Map.ZoomLevel = 12;
+            Map.LandmarksVisible = true;
             //If Location Service is enabled
             if (await Geolocator.RequestAccessAsync() == GeolocationAccessStatus.Allowed)
             {
@@ -96,37 +98,54 @@ namespace DvD_Dev
                 Geopoint myLocation = pos.Coordinate.Point;
                 // Set the map location.  
                 Map.Center = myLocation;
-                Map.ZoomLevel = 12;
-                Map.LandmarksVisible = true;
-            }
-            else
-            {  //Else set starting location to centre of Singapore
+            } else {  //Else set starting location to centre of Singapore
                // Set the map location.
                 BasicGeoposition pos = new BasicGeoposition() { Latitude = startLat, Longitude = startLon };
                 Geopoint startLocation = new Geopoint(pos);
                 Map.Center = startLocation;
-                Map.ZoomLevel = 12;
-                Map.LandmarksVisible = true;
             }
         }
 
+        private void NewMapLayer()
+        {     
+            Landmarks = new List<MapElement>();
+            LandmarksLayer = new MapElementsLayer
+            {
+                ZIndex = 1,
+                MapElements = Landmarks
+            };
 
-        /// <summary>
-        /// <see cref="windows.UI.Xaml.Controls.Maps.MapControl.HeadingChanged"/>
-        /// </summary>
-        private void Heading_HeadingChanged(MapControl sender, Object obj)
-        {
-            heading = Map.Heading;
-            System.Diagnostics.Debug.WriteLine("Heading changed to " + heading);
-        }
-        private void Map_MapTapped(MapControl sender, MapInputEventArgs args)
-        {
-            BasicGeoposition tappedPos = args.Location.Position;
-            DropPin(tappedPos);
-            CreateMission(tappedPos);
+            Map.Layers.Add(LandmarksLayer);
         }
 
-        private void DropPin(BasicGeoposition pos)
+        private void RefreshMapLayer()
+        {
+            Map.Layers.Remove(LandmarksLayer);
+            NewMapLayer();
+        }
+
+        private void AddMapElement(MapElement e)
+        {
+            Landmarks.Add(e);
+            Map.Layers.Remove(LandmarksLayer);
+            LandmarksLayer = new MapElementsLayer
+            {
+                ZIndex = 1,
+                MapElements = Landmarks
+            };
+            Map.Layers.Add(LandmarksLayer);
+        }
+
+        private void InitializeHandlers()
+        {
+            //Handler that executes everytime drone location changes
+            fcHandler = DJISDKManager.Instance.ComponentManager.GetFlightControllerHandler(ProductIndex, ComponentIndex);
+            fcHandler.AircraftLocationChanged += printLocation;
+
+            wpHandler = DJISDKManager.Instance.WaypointMissionManager.GetWaypointMissionHandler(ProductIndex);
+        }
+
+        private void DropPin(BasicGeoposition pos, String title)
         {
             Geopoint tappedPoint = new Geopoint(pos);
 
@@ -135,28 +154,10 @@ namespace DvD_Dev
                 Location = tappedPoint,
                 NormalizedAnchorPoint = new Point(0.5, 1.0),
                 ZIndex = 0,
-                Title = "Space Needle"
-
-
+                Title = title
             };
 
-            Landmarks.Add(spaceNeedleIcon);
-            Map.Layers.Remove(LandmarksLayer);
-            LandmarksLayer = new MapElementsLayer
-            {
-                ZIndex = 1,
-                MapElements = Landmarks
-            };
-            Map.Layers.Add(LandmarksLayer);
-
-            //test
-            string status = "MapTapped at \nLatitude:" + pos.Latitude + "\nLongitude: " + pos.Longitude;
-            System.Diagnostics.Debug.WriteLine(status);
-            long count = LandmarksLayer.MapElements.Count();
-            System.Diagnostics.Debug.WriteLine("Landmarks layer has " + count + " map element");
-            System.Diagnostics.Debug.WriteLine("Landmarks layer has " + count + " map element");
-            MapElementsLayer l = (MapElementsLayer)Map.Layers.ElementAt(0);
-            System.Diagnostics.Debug.WriteLine("Inside the map, there is really " + l.MapElements.Count());
+            AddMapElement(spaceNeedleIcon);
         }
 
         private void CreateMission(BasicGeoposition startPos)
@@ -178,10 +179,6 @@ namespace DvD_Dev
                 System.Diagnostics.Debug.WriteLine("MISSION UPLOAD FAILURE");
 
             //      }
-
-
-
-
         }
 
         private WaypointMission SimpleTraversal(BasicGeoposition startPos)
@@ -193,35 +190,10 @@ namespace DvD_Dev
             wpList.Add(startWP);
 
             GenerateSpiralPoints(wpList, startWP);
-
-            ToGeodesic(wpList, 32);
-
+ 
             //Draw on Map
-            List<BasicGeoposition> posList = new List<BasicGeoposition>();
-            foreach (Waypoint wp in wpList)
-            {
-                var loc = wp.location;
-                posList.Add(new BasicGeoposition
-                {
-                    Longitude = loc.longitude,
-                    Latitude = loc.latitude
-                });
-            }
-
-            var route = new MapPolyline
-            {
-                Path = new Geopath(posList),
-                ZIndex = 0
-            };
-
-            Landmarks.Add(route);
-            Map.Layers.Remove(LandmarksLayer);
-            LandmarksLayer = new MapElementsLayer
-            {
-                ZIndex = 1,
-                MapElements = Landmarks
-            };
-            Map.Layers.Add(LandmarksLayer);
+            //test
+            DrawFigure(wpList);
 
             //Create Mission for drone to execute
             WaypointMission wpMission = new WaypointMission
@@ -249,12 +221,12 @@ namespace DvD_Dev
             wpList.Add(upWP);
             prevWP = upWP;
 
-            for(int i = 0; i < numSpiral; i++)
+            for (int i = 0; i < numSpiral; i++)
             {
                 //test
-                System.Diagnostics.Debug.WriteLine("Heading: " + Map.Heading);
+                //System.Diagnostics.Debug.WriteLine("Heading: " + Map.Heading);
 
-                Waypoint rightWP = FindPointAtDistanceFrom(prevWP,  Map.Heading + 90, len);
+                Waypoint rightWP = FindPointAtDistanceFrom(prevWP, Map.Heading + 90, len);
                 wpList.Add(rightWP);
                 prevWP = rightWP;
 
@@ -274,6 +246,38 @@ namespace DvD_Dev
             }
         }
 
+        private void DrawFigure(List<BasicGeoposition> posList)
+        {
+            var route = new MapPolyline
+            {
+                Path = new Geopath(posList),
+                ZIndex = 0
+            };
+
+            AddMapElement(route);
+        }
+
+        private void DrawFigure(List<Waypoint> wpList)
+        {
+            List<BasicGeoposition> posList = new List<BasicGeoposition>();
+            foreach (Waypoint wp in wpList)
+            {
+                var loc = wp.location;
+                posList.Add(new BasicGeoposition
+                {
+                    Longitude = loc.longitude,
+                    Latitude = loc.latitude
+                });
+            }
+
+            DrawFigure(posList);
+        }
+
+        private void printLocation(Object sender, LocationCoordinate2D? location)
+        {
+            string status = "Location changed to " + location.ToString();
+            //System.Diagnostics.Debug.WriteLine(status);
+        }
 
     }
 }
