@@ -16,6 +16,9 @@ using DJI.WindowsSDK;
 using Windows.UI.Xaml.Media.Imaging;
 using DJIVideoParser;
 using System.Threading.Tasks;
+using muxc = Microsoft.UI.Xaml.Controls;
+using Windows.UI.Core;
+using Windows.System;
 // The Blank Page item template is documented at https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
 namespace DvD_Dev
@@ -25,170 +28,153 @@ namespace DvD_Dev
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        private DJIVideoParser.Parser videoParser;
 
         public MainPage()
         {
             this.InitializeComponent();
-            DJISDKManager.Instance.SDKRegistrationStateChanged += Instance_SDKRegistrationEvent;
-            //Replace app key with the real key registered. Make sure that the key is matched with your application's package id.
-            DJISDKManager.Instance.RegisterApp("134a0689605a1fdbace699ba");
         }
-        //Callback of SDKRegistrationEvent
-        private async void Instance_SDKRegistrationEvent(SDKRegistrationState state, SDKError resultCode)
+
+        private double NavViewCompactModeThresholdWidth { get { return NavView.CompactModeThresholdWidth; } }
+
+        private void ContentFrame_NavigationFailed(object sender, NavigationFailedEventArgs e)
         {
-            if (resultCode == SDKError.NO_ERROR)
+            throw new Exception("Failed to load Page " + e.SourcePageType.FullName);
+        }
+
+        // List of ValueTuple holding the Navigation Tag and the relative Navigation Page
+        private readonly List<(string Tag, Type Page)> _pages = new List<(string Tag, Type Page)>
+{
+      //TODO: Create respective pages
+    ("home", typeof(HomePage)),
+    ("drone_camera", typeof(DroneCameraPage)),
+    ("map", typeof(MapPage)),
+};
+
+        private void NavView_Loaded(object sender, RoutedEventArgs e)
+        {
+            ContentFrame.Navigated += On_Navigated;
+ 
+            NavView.SelectedItem = NavView.MenuItems[0];
+            NavView_Navigate("home", new Windows.UI.Xaml.Media.Animation.EntranceNavigationTransitionInfo());
+
+            Window.Current.CoreWindow.Dispatcher.AcceleratorKeyActivated +=
+                CoreDispatcher_AcceleratorKeyActivated;
+
+            Window.Current.CoreWindow.PointerPressed += CoreWindow_PointerPressed;
+
+            SystemNavigationManager.GetForCurrentView().BackRequested += System_BackRequested;
+        }
+
+        private void NavView_ItemInvoked(muxc.NavigationView sender,
+                                         muxc.NavigationViewItemInvokedEventArgs args)
+        {
+            if (args.IsSettingsInvoked == true)
             {
-                System.Diagnostics.Debug.WriteLine("Register app successfully.");
+                NavView_Navigate("settings", args.RecommendedNavigationTransitionInfo);
+            }
+            else if (args.InvokedItemContainer != null)
+            {
+                var navItemTag = args.InvokedItemContainer.Tag.ToString();
+                NavView_Navigate(navItemTag, args.RecommendedNavigationTransitionInfo);
+            }
+        }
 
-                //Must in UI thread
-                await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, async () =>
-                {
-                    //Raw data and decoded data listener
-                    if (videoParser == null)
-                    {
-                        videoParser = new DJIVideoParser.Parser();
-                        videoParser.Initialize(delegate (byte[] data)
-                        {
-                            //Note: This function must be called because we need DJI Windows SDK to help us to parse frame data.
-                            return DJISDKManager.Instance.VideoFeeder.ParseAssitantDecodingInfo(0, data);
-                        });
-                        //Set the swapChainPanel to display and set the decoded data callback.
-                        videoParser.SetSurfaceAndVideoCallback(0, 0, swapChainPanel, ReceiveDecodedData);
-                        DJISDKManager.Instance.VideoFeeder.GetPrimaryVideoFeed(0).VideoDataUpdated += OnVideoPush;
-                    }
-                    //get the camera type and observe the CameraTypeChanged event.
-                    DJISDKManager.Instance.ComponentManager.GetCameraHandler(0, 0).CameraTypeChanged += OnCameraTypeChanged;
-                    var type = await DJISDKManager.Instance.ComponentManager.GetCameraHandler(0, 0).GetCameraTypeAsync();
-                    OnCameraTypeChanged(this, type.value);
-                });
-
+        private void NavView_Navigate(
+            string navItemTag,
+            Windows.UI.Xaml.Media.Animation.NavigationTransitionInfo transitionInfo)
+        {
+            System.Diagnostics.Debug.WriteLine("Navigating to " + navItemTag);
+            Type _page = null;
+            if (navItemTag == "settings")
+            {
+                _page = typeof(SettingsPage);
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine("SDK register failed, the error is: ");
-                System.Diagnostics.Debug.WriteLine(resultCode.ToString());
+                var item = _pages.FirstOrDefault(p => p.Tag.Equals(navItemTag));
+                _page = item.Page;
+            }
+            // Get the page type before navigation so you can prevent duplicate
+            // entries in the backstack.
+            var preNavPageType = ContentFrame.CurrentSourcePageType;
+
+            // Only navigate if the selected page isn't currently loaded.
+            if (!(_page is null) && !Type.Equals(preNavPageType, _page))
+            {
+                ContentFrame.Navigate(_page, null, transitionInfo);
             }
         }
 
-        //raw data
-        void OnVideoPush(VideoFeed sender, byte[] bytes)
+        private void NavView_BackRequested(muxc.NavigationView sender,
+                                           muxc.NavigationViewBackRequestedEventArgs args)
         {
-            videoParser.PushVideoData(0, 0, bytes, bytes.Length);
+            TryGoBack();
         }
 
-        //Decode data. Do nothing here. This function would return a bytes array with image data in RGBA format.
-        async void ReceiveDecodedData(byte[] data, int width, int height)
+        private void CoreDispatcher_AcceleratorKeyActivated(CoreDispatcher sender, AcceleratorKeyEventArgs e)
         {
-        }
-
-        //We need to set the camera type of the aircraft to the DJIVideoParser. After setting camera type, DJIVideoParser would correct the distortion of the video automatically.
-        private void OnCameraTypeChanged(object sender, CameraTypeMsg? value)
-        {
-            if (value != null)
+            // When Alt+Left are pressed navigate back
+            if (e.EventType == CoreAcceleratorKeyEventType.SystemKeyDown
+                && e.VirtualKey == VirtualKey.Left
+                && e.KeyStatus.IsMenuKeyDown == true
+                && !e.Handled)
             {
-                switch (value.Value.value)
-                {
-                    case CameraType.MAVIC_2_ZOOM:
-                        this.videoParser.SetCameraSensor(AircraftCameraType.Mavic2Zoom);
-                        break;
-                    case CameraType.MAVIC_2_PRO:
-                        this.videoParser.SetCameraSensor(AircraftCameraType.Mavic2Pro);
-                        break;
-                    default:
-                        this.videoParser.SetCameraSensor(AircraftCameraType.Others);
-                        break;
-                }
-
+                e.Handled = TryGoBack();
             }
         }
 
-        private async void StartShootPhoto_Click(object sender, RoutedEventArgs e)
+        private void System_BackRequested(object sender, BackRequestedEventArgs e)
         {
-            if (DJISDKManager.Instance.ComponentManager != null)
+            if (!e.Handled)
             {
-                var retCode = await DJISDKManager.Instance.ComponentManager.GetCameraHandler(0, 0).StartShootPhotoAsync();
-                if (retCode != SDKError.NO_ERROR)
-                {
-                    OutputTB.Text = "Failed to shoot photo, result code is " + retCode.ToString();
-                } else
-                {
-                    OutputTB.Text = "Shoot photo successfully";
-                }
-            }
-            else
-            {
-                OutputTB.Text = "SDK hasn't been activated yet.";
+                e.Handled = TryGoBack();
             }
         }
 
-        private async void StartRecordVideo_Click(object sender, RoutedEventArgs e)
+        private void CoreWindow_PointerPressed(CoreWindow sender, PointerEventArgs e)
         {
-            if (DJISDKManager.Instance.ComponentManager != null)
+            // Handle mouse back button.
+            if (e.CurrentPoint.Properties.IsXButton1Pressed)
             {
-                var retCode = await DJISDKManager.Instance.ComponentManager.GetCameraHandler(0, 0).StartRecordAsync();
-                if (retCode != SDKError.NO_ERROR)
-                {
-                    OutputTB.Text = "Failed to record video, result code is " + retCode.ToString();
-                }
-                else
-                {
-                    OutputTB.Text = "Record video successfully";
-                }
-            }
-            else
-            {
-                OutputTB.Text = "SDK hasn't been activated yet.";
+                e.Handled = TryGoBack();
             }
         }
 
-        private async void StopRecordVideo_Click(object sender, RoutedEventArgs e)
+        private bool TryGoBack()
         {
-            if (DJISDKManager.Instance.ComponentManager != null)
-            {
-                var retCode = await DJISDKManager.Instance.ComponentManager.GetCameraHandler(0, 0).StopRecordAsync();
-                if (retCode != SDKError.NO_ERROR)
-                {
-                    OutputTB.Text = "Failed to stop record video, result code is " + retCode.ToString();
-                }
-                else
-                {
-                    OutputTB.Text = "Stop record video successfully";
-                }
-            }
-            else
-            {
-                OutputTB.Text = "SDK hasn't been activated yet.";
-            }
+            if (!ContentFrame.CanGoBack)
+                return false;
+
+            // Don't go back if the nav pane is overlayed.
+            if (NavView.IsPaneOpen &&
+                (NavView.DisplayMode == muxc.NavigationViewDisplayMode.Compact ||
+                 NavView.DisplayMode == muxc.NavigationViewDisplayMode.Minimal))
+                return false;
+
+            ContentFrame.GoBack();
+            return true;
         }
 
-        private async void SetCameraWorkModeToShootPhoto_Click(object sender, RoutedEventArgs e)
+        private void On_Navigated(object sender, NavigationEventArgs e)
         {
-            SetCameraWorkMode(CameraWorkMode.SHOOT_PHOTO);
-        }
+            NavView.IsBackEnabled = ContentFrame.CanGoBack;
 
-        private void SetCameraModeToRecord_Click(object sender, RoutedEventArgs e)
-        {
-            SetCameraWorkMode(CameraWorkMode.RECORD_VIDEO);
-        }
-
-        private async void SetCameraWorkMode(CameraWorkMode mode)
-        {
-            if (DJISDKManager.Instance.ComponentManager != null)
+            if (ContentFrame.SourcePageType == typeof(SettingsPage))
             {
-                CameraWorkModeMsg workMode = new CameraWorkModeMsg
-                {
-                    value = mode,
-                };
-                var retCode = await DJISDKManager.Instance.ComponentManager.GetCameraHandler(0, 0).SetCameraWorkModeAsync(workMode);
-                if (retCode != SDKError.NO_ERROR)
-                {
-                    OutputTB.Text = "Set camera work mode to " + mode.ToString() + "failed, result code is " + retCode.ToString();
-                }
+                // SettingsItem is not part of NavView.MenuItems, and doesn't have a Tag.
+                NavView.SelectedItem = (muxc.NavigationViewItem)NavView.SettingsItem;
+                NavView.Header = "Settings";
             }
-            else
+            else if (ContentFrame.SourcePageType != null)
             {
-                OutputTB.Text = "SDK hasn't been activated yet.";
+                var item = _pages.FirstOrDefault(p => p.Page == e.SourcePageType);
+
+                NavView.SelectedItem = NavView.MenuItems
+                    .OfType<muxc.NavigationViewItem>()
+                    .First(n => n.Tag.Equals(item.Tag));
+
+                NavView.Header =
+                    ((muxc.NavigationViewItem)NavView.SelectedItem)?.Content?.ToString();
             }
         }
     }

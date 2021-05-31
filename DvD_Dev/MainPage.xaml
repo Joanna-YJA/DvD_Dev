@@ -4,35 +4,63 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:DvD_Dev"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="4*"/>
-        </Grid.RowDefinitions>
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"></ColumnDefinition>
-                <ColumnDefinition Width="3*"></ColumnDefinition>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-                <Button Name="SetCameraWorkModeToShootPhoto" Margin="1, 1, 1, 1" Click="SetCameraWorkModeToShootPhoto_Click">Set Shoot Photo Work Mode</Button>
-                <Button Name="SetCameraModeToRecord" Margin="1, 1, 1, 1" Click="SetCameraModeToRecord_Click">Set Record Video Work Mode</Button>
-                <Button Name="StartShootPhoto" Margin="1, 1, 1, 1" Click="StartShootPhoto_Click">Shoot Photo</Button>
-                <Button Name="StartRecordVideo" Margin="1, 1, 1, 1" Click="StartRecordVideo_Click">Start Record</Button>
-                <Button Name="StopRecordVideo" Margin="1, 1, 1, 1" Click="StopRecordVideo_Click">Stop Record</Button>
-            </StackPanel>
-            <StackPanel Grid.Column="1">
-                <TextBlock>Current Mode:</TextBlock>
-                <TextBlock Name="ModeTB">Unknown</TextBlock>
-                <TextBlock>Current Record Time:</TextBlock>
-                <TextBlock Name="RecordTimeTB">0</TextBlock>
-                <TextBlock Name="OutputTB"></TextBlock>
-            </StackPanel>
-        </Grid>
-        <SwapChainPanel x:Name="swapChainPanel" 
-               Grid.Row="1"></SwapChainPanel>
+    <Grid>
+        <muxc:NavigationView x:Name="NavView"
+                         Loaded="NavView_Loaded"
+                         ItemInvoked="NavView_ItemInvoked"
+                         BackRequested="NavView_BackRequested">
+            <muxc:NavigationView.MenuItems>
+                <muxc:NavigationViewItem Tag="home" Icon="Home" Content="Home"/>
+                <muxc:NavigationViewItemSeparator/>
+                <muxc:NavigationViewItemHeader x:Name="Sections"
+                                           Content="Sectioms"/>
+                <muxc:NavigationViewItem Tag="drone_camera" Content="Drone Camera">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xEB3C;"/> <!--TODO: Update icons-->
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem Tag="map" Content="Map">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE7FC;"/>
+                        <!--TODO: Update icons-->
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+            </muxc:NavigationView.MenuItems>
+
+            <muxc:NavigationView.AutoSuggestBox>
+                <!-- See AutoSuggestBox documentation for
+                 more info about how to implement search. -->
+                <AutoSuggestBox x:Name="NavViewSearchBox" QueryIcon="Find"/>
+            </muxc:NavigationView.AutoSuggestBox>
+
+            <ScrollViewer>
+                <Frame x:Name="ContentFrame" Padding="12,0,12,24" IsTabStop="True"
+                   NavigationFailed="ContentFrame_NavigationFailed"/>
+            </ScrollViewer>
+        </muxc:NavigationView>
+
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState>
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger
+                        MinWindowWidth="{x:Bind NavViewCompactModeThresholdWidth}"/>
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <!-- Remove the next 3 lines for left-only navigation. -->
+                        <Setter Target="NavView.PaneDisplayMode" Value="Top"/>
+                        <Setter Target="NavViewSearchBox.Width" Value="200"/>
+                        <Setter Target="MainPagesHeader.Visibility" Value="Collapsed"/>
+                        <!-- Leave the next line for left-only navigation. -->
+                        <Setter Target="ContentFrame.Padding" Value="24,0,24,24"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
     </Grid>
+
 </Page>
