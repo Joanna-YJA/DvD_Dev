@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DJI.WindowsSDK;
+using Windows.Devices.Geolocation;
 
 namespace DvD_Dev
 {
@@ -24,16 +25,17 @@ namespace DvD_Dev
         /// <returns>
         /// the destination point in latitude and longtitude.
         /// </returns>
-        public static Waypoint FindPointAtDistanceFrom(Waypoint startPoint, double initialBearingDegs, double distanceKilometres)
+        public static Waypoint FindPointAtDistanceFrom(BasicGeoposition startPoint, double initialBearingDegs, double distanceKilometres)
         {
             const double radiusEarthKilometres = 6371.01;
+
+            initialBearingDegs = distanceKilometres < 0 ? (initialBearingDegs + 180) % 360 : initialBearingDegs;
             var distRatio = distanceKilometres / radiusEarthKilometres;
             var distRatioSine = Math.Sin(distRatio);
             var distRatioCosine = Math.Cos(distRatio);
 
-            var startLoc = startPoint.location;
-            var startLatRad = DegreesToRadians(startLoc.latitude);
-            var startLonRad = DegreesToRadians(startLoc.longitude);
+            var startLatRad = DegreesToRadians(startPoint.Latitude);
+            var startLonRad = DegreesToRadians(startPoint.Longitude);
 
             var startLatCos = Math.Cos(startLatRad);
             var startLatSin = Math.Sin(startLatRad);
