@@ -13,7 +13,7 @@
 
         <maps:MapControl 
            Name="Map"  
-           Style="Terrain"                          
+           Style="Terrain"     
            ZoomInteractionMode="GestureAndControl"  
            TiltInteractionMode="GestureAndControl"    
             MapTapped="Map_MapTapped"
