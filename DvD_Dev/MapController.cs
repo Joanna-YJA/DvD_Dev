@@ -8,6 +8,7 @@ using Windows.Devices.Geolocation;
 using Windows.Foundation;
 using Windows.UI;
 using Windows.UI.Xaml.Controls.Maps;
+using UnityEngine.;
 
 namespace DvD_Dev
 {
@@ -110,6 +111,10 @@ namespace DvD_Dev
 
             DrawSeperateFootprint(pathList);
             DrawLine(pathList, pathColor);
+
+            //testing
+            PathFinder pathFinder = new PathFinder();
+            pathFinder.InitPathFinder();
         }
 
         private void DropPin(BasicGeoposition pos, String title)

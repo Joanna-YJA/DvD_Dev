@@ -73,8 +73,6 @@ namespace DvD_Dev
             fpBase = altitudeM * (Math.Tan(angleR) - Math.Tan(angleL));
             fpBase = fpBase / 1000 * 2;
 
-            fpDimension 
-
             double angleU = pitchRad + 0.5 * VFVRad;
             double angleD = pitchRad - 0.5 * VFVRad;
             fpHeight = altitudeM * (Math.Tan(angleU) - Math.Tan(angleD));
