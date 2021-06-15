@@ -1,10 +1,10 @@
-﻿using UnityEngine;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace DvD_Dev
 {
-    class SpaceUnit : MonoBehaviour
+    class SpaceUnit
     {
 
         public Octree space;
@@ -32,16 +32,11 @@ namespace DvD_Dev
         }
         public UnitState state = UnitState.IDLE;
 
-        [SerializeField]
         public Vector3 velocity;
-        [SerializeField]
         public Vector3 position;
-        [SerializeField]
         public Vector3 standPoint;
-        [SerializeField]
         Queue<Vector3> wayPoints;
         float wayPointRange;
-        [SerializeField]
         Vector3 lastWayPoint;
 
         public bool landed = true;
@@ -52,8 +47,8 @@ namespace DvD_Dev
 
         void Start()
         {
-            position = transform.position;
-            standPoint = position;
+           // position = transform.position;
+          // standPoint = position;
          //   targetDroneBB = gameObject.GetComponent<BoundingBox>();
         }
 
@@ -96,23 +91,23 @@ namespace DvD_Dev
         // Move it to the next position
         private void MovementUpdate()
         {
-            position = transform.position;
+           // position = transform.position;
 
             // Find next waypoint
-            Vector3 next = Vector3.zero;
-            Vector3 nextSpot = Vector3.zero;
+            Vector3 next = Vector3.Zero;
+            Vector3 nextSpot = Vector3.Zero;
             if (wayPoints != null && wayPoints.Count > 0)
             {
                 next = wayPoints.Peek();
-                nextSpot = next + ((lastWayPoint == Vector3.zero || wayPoints.Count == 1) ? Vector3.zero : (next - lastWayPoint).normalized * wayPointRange);
+                nextSpot = next + ((lastWayPoint == Vector3.Zero || wayPoints.Count == 1) ? Vector3.Zero : Vector3.Normalize(next - lastWayPoint) * wayPointRange);
 
-                while (wayPoints.Count > 0 && (nextSpot - position).sqrMagnitude < wayPointRange * wayPointRange)
+                while (wayPoints.Count > 0 && (nextSpot - position).LengthSquared() < wayPointRange * wayPointRange)
                 {
                     lastWayPoint = wayPoints.Dequeue();
                     if (wayPoints.Count > 0)
                     {
                         next = wayPoints.Peek();
-                        nextSpot = next + ((lastWayPoint == Vector3.zero || wayPoints.Count == 1) ? Vector3.zero : (next - lastWayPoint).normalized * wayPointRange);
+                        nextSpot = next + ((lastWayPoint == Vector3.Zero || wayPoints.Count == 1) ? Vector3.Zero : Vector3.Normalize(next - lastWayPoint) * wayPointRange);
                     }
                     else if (state == UnitState.MOVING)
                     {
@@ -123,8 +118,8 @@ namespace DvD_Dev
             }
             if (wayPoints == null || wayPoints.Count == 0)
             {
-                lastWayPoint = Vector3.zero;
-                velocity = Vector3.zero;
+                lastWayPoint = Vector3.Zero;
+                velocity = Vector3.Zero;
                // PathfindingModeOff();
 
             }
@@ -141,68 +136,68 @@ namespace DvD_Dev
                     Queue<Vector3>.Enumerator e = wayPoints.GetEnumerator();
                     e.MoveNext(); e.MoveNext();
                     Vector3 nextnext = e.Current;
-                    if (LineOfSightRaycast(position, nextnext))
-                    {
-                        lastWayPoint = wayPoints.Dequeue();
-                        next = wayPoints.Peek();
-                        nextSpot = next + (wayPoints.Count == 1 ? Vector3.zero : (next - lastWayPoint).normalized * wayPointRange);
-                        jumped = true;
-                        velocity = Vector3.zero;
-                    }
+                    //if (LineOfSightRaycast(position, nextnext))
+                    //{
+                    //    lastWayPoint = wayPoints.Dequeue();
+                    //    next = wayPoints.Peek();
+                    //    nextSpot = next + (wayPoints.Count == 1 ? Vector3.Zero : Vector3.Normalize(next - lastWayPoint) * wayPointRange);
+                    //    jumped = true;
+                    //    velocity = Vector3.Zero;
+                    //}
                 }
 
-                if (!jumped && wayPoints != null && wayPoints.Count > 0 && !LineOfSightRaycast(position, next))
-                {
-                    List<Node> tempPath = spaceGraph.FindPath(spaceGraph.LazyThetaStar, position, next, space);
-                    if (tempPath != null)
-                    {
-                        Queue<Vector3> newPath = new Queue<Vector3>();
-                        foreach (Node node in tempPath)
-                        {
-                            newPath.Enqueue(node.center);
-                        }
-                        wayPoints.Dequeue();
-                        while (wayPoints.Count > 0) newPath.Enqueue(wayPoints.Dequeue());
-                        wayPoints = newPath;
-                    }
-                }
+                //if (!jumped && wayPoints != null && wayPoints.Count > 0 && !LineOfSightRaycast(position, next))
+                //{
+                //    List<Node> tempPath = spaceGraph.FindPath(spaceGraph.LazyThetaStar, position, next, space);
+                //    if (tempPath != null)
+                //    {
+                //        Queue<Vector3> newPath = new Queue<Vector3>();
+                //        foreach (Node node in tempPath)
+                //        {
+                //            newPath.Enqueue(node.center);
+                //        }
+                //        wayPoints.Dequeue();
+                //        while (wayPoints.Count > 0) newPath.Enqueue(wayPoints.Dequeue());
+                //        wayPoints = newPath;
+                //    }
+                //}
                 pathFindingRecheckTimer += pathFindingRecheckInterval;
             }
 
             // Decelerate to zero velocity when it reaches waypoint
             // Based on the current velocity, calculate how much distance it would take for spaceship to decelerate to zero velocity
-            float stoppingDistance = (float)System.Math.Pow(velocity.magnitude, 2) / (2 * acceleration);
+            float stoppingDistance = (float)System.Math.Pow(velocity.Length(), 2) / (2 * acceleration);
 
             // If it is less than or equal a multiple of stopping distance, start decelerating
             bool decelerating = false;
-            if ((nextSpot - position).magnitude <= stoppingDistance * 2f)
+            if ((nextSpot - position).Length() <= stoppingDistance * 2f)
             {
                 decelerating = true;
             }
 
-            Vector3 targetVelocity = Vector3.zero;
+            Vector3 targetVelocity = Vector3.Zero;
 
             // If it is very near the waypoint, lower the speed to 1m/s
             // This should not be necessary if deceleration works, but keep this as fallback
-            if ((nextSpot - position).magnitude < 1f)
+            if ((nextSpot - position).Length() < 1f)
             {
-                velocity = (nextSpot - position).normalized * 1f;
+                velocity = Vector3.Normalize(nextSpot - position) * 1f;
             }
             // Gradually decelerate to 1m/s as it approaches waypoint
             else if (decelerating)
             {
                 if (wayPoints != null && wayPoints.Count > 0)
                 {
-                    targetVelocity = (nextSpot - position).normalized * 1f;
+                    targetVelocity = Vector3.Normalize(nextSpot - position) * 1f;
                 }
-                if ((targetVelocity - velocity).sqrMagnitude < U.Sq(acceleration * U.limitedDeltaTime))
+                if ((targetVelocity - velocity).LengthSquared() < U.Sq(acceleration * U.limitedDeltaTime))
                 {
                     velocity = targetVelocity;
                 }
                 else
                 {
 
-                    velocity += (targetVelocity - velocity).normalized * acceleration * U.limitedDeltaTime;
+                    velocity += Vector3.Normalize(targetVelocity - velocity) * acceleration * U.limitedDeltaTime;
                 }
             }
             else
@@ -211,57 +206,57 @@ namespace DvD_Dev
 
                 if (wayPoints != null && wayPoints.Count > 0)
                 {
-                    targetVelocity = (nextSpot - position).normalized * maxVelocity;
+                    targetVelocity = Vector3.Normalize(nextSpot - position) * maxVelocity;
                 }
-                if ((targetVelocity - velocity).sqrMagnitude < U.Sq(acceleration * U.limitedDeltaTime))
+                if ((targetVelocity - velocity).LengthSquared() < U.Sq(acceleration * U.limitedDeltaTime))
                 {
                     velocity = targetVelocity;
                 }
                 else
                 {
-                    velocity += (targetVelocity - velocity).normalized * acceleration * U.limitedDeltaTime;
+                    velocity += Vector3.Normalize(targetVelocity - velocity) * acceleration * U.limitedDeltaTime;
                 }
             }
 
             // Repulsive force from SpaceUnits
-            Collider[] touch = Physics.OverlapSphere(position, radius + repulsiveRadius);
-            foreach (Collider col in touch)
-            {
-                SpaceUnit ship = col.GetComponent<SpaceUnit>();
-                if (ship != null)
-                {
-                    float d = (ship.position - position).magnitude - radius - ship.radius;
-                    Vector3 acc = (position - ship.position).normalized * repulsiveCoeff * Mathf.Pow(1 - Mathf.Clamp01(d / repulsiveRadius), repulsivePow);
-                    //Vector3 acc = (position - ship.position).normalized * repulsiveCoeff / (d + radius) / (d + radius);
-                    velocity += acc * U.limitedDeltaTime;
-                }
-            }
+            //Collider[] touch = Physics.OverlapSphere(position, radius + repulsiveRadius);
+            //foreach (Collider col in touch)
+            //{
+            //    SpaceUnit ship = col.GetComponent<SpaceUnit>();
+            //    if (ship != null)
+            //    {
+            //        float d = (ship.position - position).Length() - radius - ship.radius;
+            //        Vector3 acc = (position - ship.position).normalized * repulsiveCoeff * MathF.Pow(1 - MathF.Clamp01(d / repulsiveRadius), repulsivePow);
+            //        //Vector3 acc = (position - ship.position).normalized * repulsiveCoeff / (d + radius) / (d + radius);
+            //        velocity += acc * U.limitedDeltaTime;
+            //    }
+            //}
 
-            // Repulsive force from walls
-            for (int i = 0; i < 16; i++)
-            {
-                Ray ray = new Ray(position, Random.onUnitSphere);
-                RaycastHit res;
-                if (Physics.Raycast(ray, out res, radius + repulsiveRadius) && res.collider.GetComponent<SpaceUnit>() == null)
-                {
-                    float d = (res.point - position).magnitude - radius;
-                    Vector3 acc = (position - res.point).normalized * repulsiveCoeff * Mathf.Pow(1 - Mathf.Clamp01(d / repulsiveRadius), repulsivePow);
-                    velocity += acc * U.limitedDeltaTime / 16 * 8;
-                }
-            }
+            //// Repulsive force from walls
+            //for (int i = 0; i < 16; i++)
+            //{
+            //    Ray ray = new Ray(position, Random.onUnitSphere);
+            //    RaycastHit res;
+            //    if (Physics.Raycast(ray, out res, radius + repulsiveRadius) && res.collider.GetComponent<SpaceUnit>() == null)
+            //    {
+            //        float d = (res.point - position).Length() - radius;
+            //        Vector3 acc = (position - res.point).normalized * repulsiveCoeff * MathF.Pow(1 - MathF.Clamp01(d / repulsiveRadius), repulsivePow);
+            //        velocity += acc * U.limitedDeltaTime / 16 * 8;
+            //    }
+            //}
 
-            position += velocity * U.limitedDeltaTime;
+            //position += velocity * U.limitedDeltaTime;
 
-            // Update position
-            transform.position = position;
+            //// Update position
+            //transform.position = position;
 
-            if (targetVelocity.sqrMagnitude > 0.0001f)
-            {
-                transform.rotation = Quaternion.Lerp(Quaternion.identity, Quaternion.FromToRotation(transform.forward, targetVelocity), U.limitedDeltaTime * 5) * transform.rotation;
-            }
-            Rigidbody body = GetComponent<Rigidbody>();
-            body.velocity = Vector3.zero;
-            body.angularVelocity = Vector3.zero;
+            //if (targetVelocity.LengthSquared() > 0.0001f)
+            //{
+            //    transform.rotation = Quaternion.Lerp(Quaternion.identity, Quaternion.FromToRotation(transform.forward, targetVelocity), U.limitedDeltaTime * 5) * transform.rotation;
+            //}
+            //Rigidbody body = GetComponent<Rigidbody>();
+            //body.velocity = Vector3.Zero;
+            //body.angularVelocity = Vector3.Zero;
             //if (Settings.showShipTrajectory)
             //{
             //    DrawTrajectory();
@@ -274,70 +269,70 @@ namespace DvD_Dev
 
             // Level the SpaceUnit with the horizon at all times
             // Except when it is facing close to straight up to prevent spinning phenomenom
-            Vector3 eulerRotation = transform.rotation.eulerAngles;
-            if (Vector3.Angle(gameObject.transform.forward, Vector3.up) > 25) { transform.rotation = Quaternion.Euler(eulerRotation.x, eulerRotation.y, 0); }
+            //Vector3 eulerRotation = transform.rotation.eulerAngles;
+            //if (Vector3.Angle(gameObject.transform.forward, Vector3.up) > 25) { transform.rotation = Quaternion.Euler(eulerRotation.X, eulerRotation.Y, 0); }
 
         }
 
-        private LineRenderer line = null;
-        private LineRenderer thickLine = null;
+        //private LineRenderer line = null;
+        //private LineRenderer thickLine = null;
 
 
         // Draw two lines, one thinner one for FPV view, and one thicker one for main camera
-        public void DrawTrajectory()
-        {
-            if (line == null)
-            {
-                GameObject trajectoryGO = new GameObject("Trajectory");
-                trajectoryGO.layer = 6; // This layer is called trajectory
-                line = trajectoryGO.AddComponent<LineRenderer>();
+        //public void DrawTrajectory()
+        //{
+        //    if (line == null)
+        //    {
+        //        GameObject trajectoryGO = new GameObject("Trajectory");
+        //        trajectoryGO.layer = 6; // This layer is called trajectory
+        //        line = trajectoryGO.AddComponent<LineRenderer>();
 
-                line.startWidth = 0.01f;
-                line.endWidth = 0.01f;
-                line.material = GameObject.Find("LineMaterial").GetComponent<MeshRenderer>().sharedMaterial;
+        //        line.startWidth = 0.01f;
+        //        line.endWidth = 0.01f;
+        //        line.material = GameObject.Find("LineMaterial").GetComponent<MeshRenderer>().sharedMaterial;
 
-                GameObject thickTrajectoryGO = new GameObject("ThickTrajectory");
-                thickTrajectoryGO.layer = 7; // This layer is called trajectory
-                thickLine = thickTrajectoryGO.AddComponent<LineRenderer>();
+        //        GameObject thickTrajectoryGO = new GameObject("ThickTrajectory");
+        //        thickTrajectoryGO.layer = 7; // This layer is called trajectory
+        //        thickLine = thickTrajectoryGO.AddComponent<LineRenderer>();
 
-                thickLine.startWidth = 1f;
-                thickLine.endWidth = 1f;
-                thickLine.material = GameObject.Find("LineMaterial").GetComponent<MeshRenderer>().sharedMaterial;
-            }
-            if (wayPoints != null && wayPoints.Count > 0)
-            {
-                line.positionCount = wayPoints.Count + 1;
-                line.SetPosition(0, position);
-                int t = 1;
-                foreach (Vector3 pos in wayPoints)
-                {
-                    line.SetPosition(t++, pos);
-                }
+        //        thickLine.startWidth = 1f;
+        //        thickLine.endWidth = 1f;
+        //        thickLine.material = GameObject.Find("LineMaterial").GetComponent<MeshRenderer>().sharedMaterial;
+        //    }
+        //    if (wayPoints != null && wayPoints.Count > 0)
+        //    {
+        //        line.positionCount = wayPoints.Count + 1;
+        //        line.SetPosition(0, position);
+        //        int t = 1;
+        //        foreach (Vector3 pos in wayPoints)
+        //        {
+        //            line.SetPosition(t++, pos);
+        //        }
 
-                thickLine.positionCount = wayPoints.Count + 1;
-                thickLine.SetPosition(0, position);
-                t = 1;
-                foreach (Vector3 pos in wayPoints)
-                {
-                    thickLine.SetPosition(t++, pos);
-                }
-            }
-            else
-            {
-                line.positionCount = 0;
-                thickLine.positionCount = 0;
-            }
-        }
+        //        thickLine.positionCount = wayPoints.Count + 1;
+        //        thickLine.SetPosition(0, position);
+        //        t = 1;
+        //        foreach (Vector3 pos in wayPoints)
+        //        {
+        //            thickLine.SetPosition(t++, pos);
+        //        }
+        //    }
+        //    else
+        //    {
+        //        line.positionCount = 0;
+        //        thickLine.positionCount = 0;
+        //    }
+        //}
 
         // Delete the lines
-        public void ClearTrajectory()
-        {
-            if (line != null)
-            {
-                Destroy(line.gameObject);
-                Destroy(thickLine.gameObject);
-            }
-        }
+        //public void ClearTrajectory()
+        //{
+        //    if (line != null)
+        //    {
+        //        Destroy(line.gameObject);
+        //        Destroy(thickLine.gameObject);
+        //    }
+        //}
 
         public void MoveOrder(Vector3 targetPoint, float range)
         {
@@ -369,26 +364,26 @@ namespace DvD_Dev
         }
 
         // Check LOS (if collides with collider) from p1 to p2
-        public bool LineOfSightRaycast(Vector3 p1, Vector3 p2)
-        {
-            Vector3 dir = p2 - p1;
-            Ray ray = new Ray(p1, dir);
-            // raycast first then spherecast
-            // because SphereCast will not detect colliders for which the sphere overlaps the collider.
-            // from Docs
-            if (Physics.Raycast(ray, dir.magnitude))
-            {
-                return false;
-            }
-            else
-            {
-                if (Physics.SphereCast(ray, ext, dir.magnitude))
-                {
-                    return false;
-                }
-                else { return true; }
-            }
+        //public bool LineOfSightRaycast(Vector3 p1, Vector3 p2)
+        //{
+        //    Vector3 dir = p2 - p1;
+        //    Ray ray = new Ray(p1, dir);
+        //    // raycast first then spherecast
+        //    // because SphereCast will not detect colliders for which the sphere overlaps the collider.
+        //    // from Docs
+        //    if (Physics.Raycast(ray, dir.Length()))
+        //    {
+        //        return false;
+        //    }
+        //    else
+        //    {
+        //        if (Physics.SphereCast(ray, ext, dir.Length()))
+        //        {
+        //            return false;
+        //        }
+        //        else { return true; }
+        //    }
 
-        }
+        //}
     }
 }

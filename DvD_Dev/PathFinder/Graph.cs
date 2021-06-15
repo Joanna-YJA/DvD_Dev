@@ -1,7 +1,7 @@
-﻿using UnityEngine;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Numerics;
 using C5;
 using Newtonsoft.Json;
 
@@ -13,7 +13,6 @@ namespace DvD_Dev
         public int connectIndex = 0;
         [JsonIgnore]
         public List<Arc> arcs;
-        [SerializeField]
         public Vector3 center;
         public Node(Vector3 _center, int _index)
         {
@@ -30,7 +29,7 @@ namespace DvD_Dev
         {
             from = _from;
             to = _to;
-            distance = (from.center - to.center).magnitude;
+            distance = (from.center - to.center).Length();
         }
         public Arc(Node _from, Node _to, float _distance)
         {
@@ -131,7 +130,7 @@ namespace DvD_Dev
                 {
                     newNode.arcs.Add(new Arc(newNode, neighbor));
                     neighbor.arcs.Add(new Arc(neighbor, newNode));
-                    float d2 = (neighbor.center - newNode.center).sqrMagnitude;
+                    float d2 = (neighbor.center - newNode.center).LengthSquared();
                     if (d2 < minDist2)
                     {
                         newNode.connectIndex = neighbor.connectIndex;
@@ -166,7 +165,7 @@ namespace DvD_Dev
         public delegate float H(Node from, Node to);
         public float estimatedCost(Node from, Node to)
         {
-            return (from.center - to.center).magnitude;
+            return (from.center - to.center).Length();
         }
 
         public List<Node> Backtrack(NodeInfo node)
@@ -424,7 +423,7 @@ namespace DvD_Dev
                             {
                                 parent = parent.parent;
                             }
-                            float gNew = parent.g + (successor.center - parent.center).magnitude;
+                            float gNew = parent.g + (successor.center - parent.center).Length();
                             if (successor.g > gNew)
                             {
                                 successor.parent = parent;
@@ -535,7 +534,7 @@ namespace DvD_Dev
                             float tempg;
                             if (infoTable.TryGetValue(a.to.index, out tempParent) && tempParent.closed)
                             {
-                                tempg = tempParent.g + (current.center - tempParent.center).magnitude;
+                                tempg = tempParent.g + (current.center - tempParent.center).Length();
                                 if (tempg < realg)
                                 {
                                     realParent = tempParent;
@@ -563,7 +562,7 @@ namespace DvD_Dev
                             float g_old = successor.g;
                             // ComputeCost
                             NodeInfo parent = current.parent == null ? current : current.parent;
-                            float gNew = parent.g + (successor.center - parent.center).magnitude;
+                            float gNew = parent.g + (successor.center - parent.center).Length();
                             if (successor.g > gNew)
                             {
                                 successor.parent = parent;

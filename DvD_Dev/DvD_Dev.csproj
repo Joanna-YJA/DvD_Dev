@@ -98,6 +98,7 @@
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
+    <Compile Include="PathFinder\CustomVector3ContractResolver.cs" />
     <Compile Include="PathFinder\U.cs" />
     <Compile Include="PathFinder\Serializer.cs" />
     <Compile Include="PathFinder\Octree.cs" />

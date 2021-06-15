@@ -8,7 +8,6 @@ using Windows.Devices.Geolocation;
 using Windows.Foundation;
 using Windows.UI;
 using Windows.UI.Xaml.Controls.Maps;
-using UnityEngine.;
 
 namespace DvD_Dev
 {

@@ -1,5 +1,4 @@
-﻿using UnityEngine.GameObject;
-using System;
+﻿using System;
 using System.IO;
 using System.Collections.Generic;
 using Newtonsoft.Json;
@@ -7,34 +6,34 @@ using Newtonsoft.Json;
 //using Newtonsoft.Json.UnityConverters.Math;
 using Windows.Storage.Pickers;
 using Windows.Storage;
+using System.Numerics;
+using System.Threading.Tasks;
 
 namespace DvD_Dev
 {
     class PathFinder
     {
 
-        public GameObject[] scenes;
+       // public GameObject[] scenes;
         public static float defaultWaypointSize = 0.2f;
 
-        public GameObject coordInputFieldX;
-        public GameObject coordInputFieldY;
-        public GameObject coordInputFieldZ;
-        public GameObject submitCoordsButton;
+        //public GameObject coordInputFieldX;
+        //public GameObject coordInputFieldY;
+        //public GameObject coordInputFieldZ;
+        //public GameObject submitCoordsButton;
 
-        public GameObject referencePoint;
+        //public GameObject referencePoint;
         public float referencePointLat;
         public float referencePointLon;
 
-        public GameObject racingDrone;
+       public SpaceUnit racingDrone;
 
         World shipWorld;
 
         Commanding command;
         //BoundingBox targetDroneBB;
 
-        [SerializeField]
         Vector3 originalRefPos;
-        [SerializeField]
         Vector3 centerOfMap = new Vector3(-18, -30, 82);
         int octreeLevel = 8; // the center point in space of the 3D cube to construct the octree from
         float shipSize = .5f; // this is used to calculate ext, which is the extension of buffer space around buildings to reduce collisions
@@ -44,49 +43,109 @@ namespace DvD_Dev
         public async void InitPathFinder()
         {
             //targetDroneBB = racingDrone.GetComponent<BoundingBox>();
-            LoadScene(0, centerOfMap, octreeLevel, shipSize, dimensions);
             //LinkShip();
-            racingDrone.GetComponent<SpaceUnit>().enabled = true;
+            // racingDrone.GetComponent<SpaceUnit>().enabled = true;
             //submitCoordsButton.GetComponent<Button>().onClick.AddListener(() => MoveToCoords());
             // MoveToCoords();
             //test
+            //Get the Window's HWND
+            //var hwnd = this.As<IWindowNative>().WindowHandle;
+             await DeserializeWorld();
+            //LoadScene(0, centerOfMap, octreeLevel, shipSize, dimensions);
+        }
+
+        public async Task DeserializeWorld()
+        {
+            Octree space = null;
             Graph spaceGraph = null;
-            System.Diagnostics.Debug.WriteLine("Starting to deserialize spaceGraph...");
+            System.Diagnostics.Debug.WriteLine("Starting to deserialize World properties...");
             FileOpenPicker picker = new FileOpenPicker();
             picker.ViewMode = PickerViewMode.List;
             picker.FileTypeFilter.Add(".json");
 
-            StorageFile file = await picker.PickSingleFileAsync();
-            if (file != null)
+            JsonSerializer serializer = JsonSerializer.Create(new JsonSerializerSettings
             {
-                using (var inputStream = await file.OpenReadAsync())
+                PreserveReferencesHandling = PreserveReferencesHandling.Objects,
+                Formatting = Formatting.Indented,
+                TypeNameHandling = TypeNameHandling.Auto,
+                ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
+                ObjectCreationHandling = ObjectCreationHandling.Auto
+            });
+
+            StorageFile file1 = await picker.PickSingleFileAsync();
+            if (file1 != null)
+            {
+                using (var inputStream = await file1.OpenReadAsync())
                 using (var classicStream = inputStream.AsStreamForRead())
                 using (var streamReader = new StreamReader(classicStream))
                 {
-                    JsonSerializer serializer = JsonSerializer.CreateDefault();
+                   space = (Octree)serializer.Deserialize(streamReader, typeof(Octree));
+                }
+            }
+            else
+            {
+                throw new FileNotFoundException("Could not locate .json file of Octree to deserialize");
+            }
+
+            StorageFile file2 = await picker.PickSingleFileAsync();
+            if (file2 != null)
+            {
+                using (var inputStream = await file2.OpenReadAsync())
+                using (var classicStream = inputStream.AsStreamForRead())
+                using (var streamReader = new StreamReader(classicStream))
+                { 
                     spaceGraph = (Graph)serializer.Deserialize(streamReader, typeof(Graph));
                 }
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine("Could not locate .json file to deserialize");
+                throw new FileNotFoundException("Could not locate .json file of Octree to deserialize");
             }
+            System.Diagnostics.Debug.WriteLine("FINISHED deserializing world properties!");
 
+            shipWorld = new World(space, spaceGraph);
+
+            //test
+            await SerializeWorld();
+        }
+
+        public async Task SerializeWorld()
+        {
+            System.Diagnostics.Debug.WriteLine("Starting to serialize spaceGraph...");
             FolderPicker folderPicker = new FolderPicker();
             folderPicker.SuggestedStartLocation = PickerLocationId.Desktop;
             folderPicker.FileTypeFilter.Add("*");
-
             StorageFolder folder = await folderPicker.PickSingleFolderAsync();
+            System.Diagnostics.Debug.WriteLine("Done picking folder...");
+
+
+            JsonSerializer serializer = JsonSerializer.Create(new JsonSerializerSettings {
+                ContractResolver = CustomVector3ContractResolver.Instance,
+                PreserveReferencesHandling = PreserveReferencesHandling.Objects,
+                Formatting = Formatting.Indented
+            }
+            );
+
             if (folder != null)
             {
-                StorageFile newFile = await folder.CreateFileAsync("ReserializedSpaceGraph.json", CreationCollisionOption.ReplaceExisting);
+                StorageFile octreeFile = await folder.CreateFileAsync("ReserializedSpaceOctree.json", CreationCollisionOption.ReplaceExisting);
 
-                using (var inputStream = await newFile.OpenAsync(FileAccessMode.ReadWrite))
+                using (var inputStream = await octreeFile.OpenAsync(FileAccessMode.ReadWrite))
                 using (var classicStream = inputStream.AsStreamForWrite())
                 using (var streamWriter = new StreamWriter(classicStream))
                 {
-                    JsonSerializer serializer = JsonSerializer.CreateDefault();
-                    serializer.Serialize(streamWriter, spaceGraph);
+                    System.Diagnostics.Debug.WriteLine("shipWorld.space.root.tree: " + shipWorld.space.root.tree);
+                    serializer.Serialize(streamWriter, shipWorld.space);
+
+                }
+
+                StorageFile graphFile = await folder.CreateFileAsync("ReserializedSpaceGraph.json", CreationCollisionOption.ReplaceExisting);
+
+                using (var inputStream = await graphFile.OpenAsync(FileAccessMode.ReadWrite))
+                using (var classicStream = inputStream.AsStreamForWrite())
+                using (var streamWriter = new StreamWriter(classicStream))
+                {
+                    serializer.Serialize(streamWriter, shipWorld.spaceGraph);
 
                 }
             }
@@ -97,14 +156,13 @@ namespace DvD_Dev
 
 
 
-            System.Diagnostics.Debug.WriteLine("Finished deserializing spaceGraph!");
+            System.Diagnostics.Debug.WriteLine("FINISHED reserializing spaceGraph!");
         }
-
         // Construct an Octree from the loaded scene
         public void LoadScene(int sceneIndex, Vector3 centerCoords, int octreeLevels, float shipSize, int dimensions)
         {
-            float ext = Mathf.Max(shipSize - 16f / (1 << 8) * Mathf.Sqrt(3) / 2, 0);
-            racingDrone.GetComponent<SpaceUnit>().ext = ext;
+            float ext = MathF.Max(shipSize - 16f / (1 << 8) * MathF.Sqrt(3) / 2, 0);
+           // racingDrone.GetComponent<SpaceUnit>().ext = ext;
 
            // shipWorld = new World(scenes[sceneIndex], dimensions, centerCoords, octreeLevels, ext, true, Graph.GraphType.CORNER);
 
@@ -113,8 +171,8 @@ namespace DvD_Dev
             //Settings.showShipTrajectory = true;
 
             // scale world by x10
-            originalRefPos = referencePoint.transform.position;
-            scenes[sceneIndex].transform.parent.localScale = new Vector3(10, 10, 10);
+            //originalRefPos = referencePoint.transform.position;
+            //scenes[sceneIndex].transform.parent.localScale = new Vector3(10, 10, 10);
 
         }
 
@@ -168,8 +226,8 @@ namespace DvD_Dev
             //float baseOfFlyerLat = 1.28936f;
             //float baseOfFlyerLon = 103.86317f;
             List<float> latLon = new List<float>();
-            float z_dist = (z - referencePoint.transform.position.z) * 10;
-            float x_dist = (x - referencePoint.transform.position.x) * 10;
+            float z_dist = (z - referencePoint.transform.position.Z) * 10;
+            float x_dist = (x - referencePoint.transform.position.X) * 10;
             latLon.Add(referencePointLat + z_dist / 30.6f * 0.00027778f);
             latLon.Add(referencePointLon + x_dist / 30.6f * 0.00027778f);
             return latLon;
@@ -180,8 +238,8 @@ namespace DvD_Dev
         //    List<float> local = new List<float>();
         //    float lon_dist = lon - referencePointLon;
         //    float lat_dist = lat - referencePointLat;
-        //    local.Add(originalRefPos.x + lon_dist * 30.6f / 0.00027778f / 10);
-        //    local.Add(originalRefPos.z + lat_dist * 30.6f / 0.00027778f / 10);
+        //    local.Add(originalRefPos.X + lon_dist * 30.6f / 0.00027778f / 10);
+        //    local.Add(originalRefPos.Z + lat_dist * 30.6f / 0.00027778f / 10);
         //    return local;
         //}
 

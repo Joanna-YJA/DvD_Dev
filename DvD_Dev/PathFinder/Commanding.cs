@@ -1,7 +1,7 @@
-﻿using UnityEngine;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System;
+using System.Numerics;
 
 namespace DvD_Dev
 {
@@ -34,7 +34,7 @@ namespace DvD_Dev
             List<Vector3> pathFindingDest = new List<Vector3>();
             foreach (SpaceUnit unit in activeUnits)
             {
-                pathFindingDest.Add(unit.position);
+                //pathFindingDest.Add(unit.position);
             }
             if (pathFindingDest.Count > 0)
             {
@@ -64,8 +64,8 @@ namespace DvD_Dev
                             {
                                 float distFromCurrPos = 0;
                                 Vector3 next = waypointList[i + 1].center;
-                                Vector3 dirToNext = (next - currPos).normalized;
-                                float distToNext = (next - currPos).magnitude;
+                                Vector3 dirToNext = Vector3.Normalize(next - currPos);
+                                float distToNext = (next - currPos).Length();
 
                                 Vector3 nextnext = waypointList[i + 2].center;
                                 while (distFromCurrPos < distToNext)
@@ -101,8 +101,8 @@ namespace DvD_Dev
 
                 for (int i = 0; i < activeUnits.Count; i++)
                 {
-                    activeUnits[i].MoveOrder(U.InverseList(allWayPoints[i]), PathFinder.defaultWaypointSize * Mathf.Pow(activeUnits.Count, 0.333f));
-                    //activeUnits[i].MoveOrder(U.InverseList(allWayPointsAfterLOSCheck[i]), Main.defaultWaypointSize * Mathf.Pow(activeUnits.Count, 0.333f));
+                    activeUnits[i].MoveOrder(U.InverseList(allWayPoints[i]), PathFinder.defaultWaypointSize * MathF.Pow(activeUnits.Count, 0.333f));
+                    //activeUnits[i].MoveOrder(U.InverseList(allWayPointsAfterLOSCheck[i]), Main.defaultWaypointSize * MathF.Pow(activeUnits.Count, 0.333f));
                 }
             }
         }
@@ -118,13 +118,13 @@ namespace DvD_Dev
             // raycast first then spherecast
             // because SphereCast will not detect colliders for which the sphere overlaps the collider.
             // from Docs
-            if (Physics.Raycast(ray, dir.magnitude))
+            if (Physics.Raycast(ray, dir.Length()))
             {
                 return false;
             }
             else
             {
-                if (Physics.SphereCast(ray, ext, dir.magnitude))
+                if (Physics.SphereCast(ray, ext, dir.Length()))
                 {
                     return false;
                 }

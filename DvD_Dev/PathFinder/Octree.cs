@@ -1,14 +1,14 @@
-﻿using UnityEngine;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System;
+using System.Numerics;
+using System.Reflection;
 
 namespace DvD_Dev
 {
     class Octree
     {
         public int maxLevel;
-        [SerializeField]
         public Vector3 corner;
         public float size;
         public float cellSize
@@ -21,6 +21,7 @@ namespace DvD_Dev
         public static int[,] cornerDir = { { 0, 0, 0 }, { 1, 0, 0 }, { 1, 1, 0 }, { 0, 1, 0 }, { 0, 0, 1 }, { 1, 0, 1 }, { 1, 1, 1 }, { 0, 1, 1 } };
         public static int[,] edgeDir = { { 0, 1, 1 }, { 0, 1, -1 }, { 0, -1, 1 }, { 0, -1, -1 }, { 1, 0, 1 }, { -1, 0, 1 }, { 1, 0, -1 }, { -1, 0, -1 }, { 1, 1, 0 }, { 1, -1, 0 }, { -1, 1, 0 }, { -1, -1, 0 } };
 
+        private Octree() { }
         public Octree(float _size, Vector3 _corner, int _maxLevel)
         {
             size = _size;
@@ -85,7 +86,7 @@ namespace DvD_Dev
         {
             p -= corner;
             float d = cellSize;
-            return new int[] { Mathf.FloorToInt(p.x / d), Mathf.FloorToInt(p.y / d), Mathf.FloorToInt(p.z / d) };
+            return new int[] { (int)MathF.Floor(p.X / d), (int)MathF.Floor(p.Y / d), (int)MathF.Floor(p.Z / d) };
         }
         public Vector3 IndexToPosition(int[] gridIndex)
         {
@@ -193,8 +194,10 @@ namespace DvD_Dev
             {
                 //FloorToIntSnap(p1g[i], out p[0, i]);
                 //FloorToIntSnap(p2g[i], out p[1, i]);
-                p[0, i] = Mathf.RoundToInt(p1g[i]);
-                p[1, i] = Mathf.RoundToInt(p2g[i]);
+                String propName = (char) ((uint)'X' + i) + "";
+                PropertyInfo prop = p1.GetType().GetProperty(propName);
+                p[0, i] =(int) MathF.Round((float) prop.GetValue(p1g));
+                p[1, i] =(int) MathF.Round((float)prop.GetValue(p2g));
                 d[i] = p[1, i] - p[0, i];
                 if (d[i] < 0)
                 {
@@ -325,8 +328,8 @@ namespace DvD_Dev
 
         private bool FloorToIntSnap(float n, out int i, float epsilon = 0.001f)
         {
-            i = Mathf.FloorToInt(n + epsilon);
-            return Mathf.Abs(n - i) <= epsilon;
+            i = (int) MathF.Floor(n + epsilon);
+            return MathF.Abs(n - i) <= epsilon;
         }
 
         public Graph centerGraph;
@@ -654,14 +657,14 @@ namespace DvD_Dev
             return result;
         }
 
-        public void DisplayVoxels(int maxLevel = -1, bool blockedOnly = true)
-        {
-            root.DisplayVoxels(maxLevel, blockedOnly);
-        }
-        public void ClearDisplay()
-        {
-            root.ClearDisplay();
-        }
+        //public void DisplayVoxels(int maxLevel = -1, bool blockedOnly = true)
+        //{
+        //    root.DisplayVoxels(maxLevel, blockedOnly);
+        //}
+        //public void ClearDisplay()
+        //{
+        //    root.ClearDisplay();
+        //}
     }
     class OctreeNode
     {
@@ -673,13 +676,14 @@ namespace DvD_Dev
         public bool blocked = false;
         public bool containsBlocked = false;
 
+        private OctreeNode() { }
         public float size
         {
             get { return tree.size / (1 << level); }
         }
         public Vector3 center
         {
-            get { return corners(0) + (size / 2) * Vector3.one; }
+            get { return corners(0) + (size / 2) * Vector3.One; }
         }
         public Vector3 corners(int n)
         {
@@ -718,7 +722,7 @@ namespace DvD_Dev
         {
             Vector3 pp = p - center;
             float r = tree.size / (1 << (level + 1));
-            return Mathf.Abs(pp.x) < r && Mathf.Abs(pp.y) < r && Mathf.Abs(pp.z) < r;
+            return MathF.Abs(pp.X) < r && MathF.Abs(pp.Y) < r && MathF.Abs(pp.Z) < r;
         }
 
         public bool IntersectLine(Vector3 p1, Vector3 p2, float tolerance = 0)
@@ -732,21 +736,29 @@ namespace DvD_Dev
                 throw new System.Exception();
             }*/
             float xm, xp, ym, yp, zm, zp;
-            xm = Mathf.Min(p1.x, p2.x);
-            xp = Mathf.Max(p1.x, p2.x);
-            ym = Mathf.Min(p1.y, p2.y);
-            yp = Mathf.Max(p1.y, p2.y);
-            zm = Mathf.Min(p1.z, p2.z);
-            zp = Mathf.Max(p1.z, p2.z);
+            xm = MathF.Min(p1.X, p2.X);
+            xp = MathF.Max(p1.X, p2.X);
+            ym = MathF.Min(p1.Y, p2.Y);
+            yp = MathF.Max(p1.Y, p2.Y);
+            zm = MathF.Min(p1.Z, p2.Z);
+            zp = MathF.Max(p1.Z, p2.Z);
             if (xm >= r || xp < -r || ym >= r || yp < -r || zm >= r || zp < -r) return false;
 
             for (int i = 0; i < 3; i++)
             {
-                Vector3 a = Vector3.zero;
-                a[i] = 1;
+                Vector3 a = Vector3.Zero;
+                //FloorToIntSnap(p2g[i], out p[1, i]);
+                String propName = (char)((uint)'X' + i) + "";
+                PropertyInfo prop = p1.GetType().GetProperty(propName);
+                String nextPropName = (char)((uint)'X' + (i + 1) % 3) + "";
+                PropertyInfo nextProp = p1.GetType().GetProperty(nextPropName);
+                String nextNextPropName = (char)((uint)'X' + (i + 2) % 3) + "";
+                PropertyInfo nextNextProp = p1.GetType().GetProperty(nextNextPropName);
+
+                prop.SetValue(a, 1);
                 a = Vector3.Cross(a, p2 - p1);
-                float d = Mathf.Abs(Vector3.Dot(p1, a));
-                float rr = r * (Mathf.Abs(a[(i + 1) % 3]) + Mathf.Abs(a[(i + 2) % 3]));
+                float d = MathF.Abs(Vector3.Dot(p1, a));
+                float rr = r * (MathF.Abs((float) nextProp.GetValue(a)) + MathF.Abs((float) nextNextProp.GetValue(a)));
                 if (d > rr) return false;
             }
 
@@ -762,17 +774,17 @@ namespace DvD_Dev
             p2 -= c;
             p3 -= c;
             float xm, xp, ym, yp, zm, zp;
-            xm = Mathf.Min(p1.x, p2.x, p3.x);
-            xp = Mathf.Max(p1.x, p2.x, p3.x);
-            ym = Mathf.Min(p1.y, p2.y, p3.y);
-            yp = Mathf.Max(p1.y, p2.y, p3.y);
-            zm = Mathf.Min(p1.z, p2.z, p3.z);
-            zp = Mathf.Max(p1.z, p2.z, p3.z);
+            xm = MathF.Min(p1.X, MathF.Min(p2.X, p3.X));
+            xp = MathF.Max(p1.X, MathF.Max(p2.X, p3.X));
+            ym = MathF.Min(p1.Y, MathF.Min(p2.Y, p3.Y));
+            yp = MathF.Max(p1.Y, MathF.Max(p2.Y, p3.Y));
+            zm = MathF.Min(p1.Z, MathF.Min(p2.Z, p3.Z));
+            zp = MathF.Max(p1.Z, MathF.Max(p2.Z, p3.Z));
             if (xm >= r || xp < -r || ym >= r || yp < -r || zm >= r || zp < -r) return false;
 
             Vector3 n = Vector3.Cross(p2 - p1, p3 - p1);
-            float d = Mathf.Abs(Vector3.Dot(p1, n));
-            if (d > r * (Mathf.Abs(n.x) + Mathf.Abs(n.y) + Mathf.Abs(n.z))) return false;
+            float d = MathF.Abs(Vector3.Dot(p1, n));
+            if (d > r * (MathF.Abs(n.X) + MathF.Abs(n.Y) + MathF.Abs(n.Z))) return false;
 
             Vector3[] p = { p1, p2, p3 };
             Vector3[] f = { p3 - p2, p1 - p3, p2 - p1 };
@@ -780,13 +792,21 @@ namespace DvD_Dev
             {
                 for (int j = 0; j < 3; j++)
                 {
-                    Vector3 a = Vector3.zero;
-                    a[i] = 1;
+                    Vector3 a = Vector3.Zero;
+                    String propName = (char)((uint)'X' + i) + "";
+                    PropertyInfo prop = p1.GetType().GetProperty(propName);
+                    String nextPropName = (char)((uint)'X' + (i + 1) % 3) + "";
+                    PropertyInfo nextProp = p1.GetType().GetProperty(nextPropName);
+                    String nextNextPropName = (char)((uint)'X' + (i + 2) % 3) + "";
+                    PropertyInfo nextNextProp = p1.GetType().GetProperty(nextNextPropName);
+
+
+                    prop.SetValue(a, 1);
                     a = Vector3.Cross(a, f[j]);
                     float d1 = Vector3.Dot(p[j], a);
                     float d2 = Vector3.Dot(p[(j + 1) % 3], a);
-                    float rr = r * (Mathf.Abs(a[(i + 1) % 3]) + Mathf.Abs(a[(i + 2) % 3]));
-                    if (Mathf.Min(d1, d2) > rr || Mathf.Max(d1, d2) < -rr) return false;
+                    float rr = r * (MathF.Abs((float) nextProp.GetValue(a)) + MathF.Abs((float) nextNextProp.GetValue(a)));
+                    if (MathF.Min(d1, d2) > rr || MathF.Max(d1, d2) < -rr) return false;
                 }
             }
             return true;
@@ -799,8 +819,15 @@ namespace DvD_Dev
             float r2 = radius * radius;
             for (int i = 0; i < 3; i++)
             {
-                if (sphereCenter[i] < c1[i]) r2 -= (sphereCenter[i] - c1[i]) * (sphereCenter[i] - c1[i]);
-                else if (sphereCenter[i] > c2[i]) r2 -= (sphereCenter[i] - c2[i]) * (sphereCenter[i] - c2[i]);
+                String propName = (char)((uint)'X' + i) + "";
+                PropertyInfo prop = sphereCenter.GetType().GetProperty(propName);
+
+                float sphereVal = (float) prop.GetValue(sphereCenter);
+                float c1Val = (float)prop.GetValue(c1);
+                float c2Val = (float)prop.GetValue(c2);
+
+                if (sphereVal < c1Val) r2 -= (sphereVal - c1Val) * (sphereVal - c1Val);
+                else if (sphereVal > c2Val) r2 -= (sphereVal - c2Val) * (sphereVal - c2Val);
             }
             return r2 > 0;
         }
@@ -814,9 +841,9 @@ namespace DvD_Dev
                 {
                     CreateChildren();
                     Vector3 corner = corners(0);
-                    int xi = Mathf.FloorToInt((p.x - corner.x) * 2 / size);
-                    int yi = Mathf.FloorToInt((p.y - corner.y) * 2 / size);
-                    int zi = Mathf.FloorToInt((p.z - corner.z) * 2 / size);
+                    int xi = (int) MathF.Floor((p.X - corner.X) * 2 / size);
+                    int yi =(int)  MathF.Floor((p.Y - corner.Y) * 2 / size);
+                    int zi =(int) MathF.Floor((p.Z - corner.Z) * 2 / size);
                     children[xi, yi, zi].DivideUntilLevel(p, maxLevel, markAsBlocked);
                 }
                 else
@@ -911,46 +938,46 @@ namespace DvD_Dev
 
 
 
-        GameObject disp;
-        public void DisplayVoxels(int maxLevel = -1, bool blockedOnly = true)
-        {
-            if (children != null && (maxLevel == -1 || level < maxLevel))
-            {
-                if (disp != null)
-                {
-                    GameObject.Destroy(disp);
-                    disp = null;
-                }
-                for (int xi = 0; xi < 2; xi++)
-                    for (int yi = 0; yi < 2; yi++)
-                        for (int zi = 0; zi < 2; zi++)
-                            children[xi, yi, zi].DisplayVoxels(maxLevel, blockedOnly);
-            }
-            else if (containsBlocked || !blockedOnly)
-            {
-                if (disp == null)
-                {
-                    disp = GameObject.Instantiate(GameObject.Find("OctreeObj"));
-                    disp.transform.position = center;
-                    disp.transform.localScale = Vector3.one * size * 0.9f;
-                }
-                disp.GetComponent<MeshRenderer>().material.color = containsBlocked ? new Color(0.7f, 0.7f, 0.7f) : new Color(level * 0.05f, level * 0.05f, level * 0.15f);
-            }
-        }
-        public void ClearDisplay()
-        {
-            if (disp != null)
-            {
-                GameObject.Destroy(disp);
-                disp = null;
-            }
-            if (children != null)
-            {
-                for (int xi = 0; xi < 2; xi++)
-                    for (int yi = 0; yi < 2; yi++)
-                        for (int zi = 0; zi < 2; zi++)
-                            children[xi, yi, zi].ClearDisplay();
-            }
-        }
+        //GameObject disp;
+        //public void DisplayVoxels(int maxLevel = -1, bool blockedOnly = true)
+        //{
+        //    if (children != null && (maxLevel == -1 || level < maxLevel))
+        //    {
+        //        if (disp != null)
+        //        {
+        //            GameObject.Destroy(disp);
+        //            disp = null;
+        //        }
+        //        for (int xi = 0; xi < 2; xi++)
+        //            for (int yi = 0; yi < 2; yi++)
+        //                for (int zi = 0; zi < 2; zi++)
+        //                    children[xi, yi, zi].DisplayVoxels(maxLevel, blockedOnly);
+        //    }
+        //    else if (containsBlocked || !blockedOnly)
+        //    {
+        //        if (disp == null)
+        //        {
+        //            disp = GameObject.Instantiate(GameObject.Find("OctreeObj"));
+        //            disp.transform.position = center;
+        //            disp.transform.localScale = Vector3.One * size * 0.9f;
+        //        }
+        //        disp.GetComponent<MeshRenderer>().material.color = containsBlocked ? new Color(0.7f, 0.7f, 0.7f) : new Color(level * 0.05f, level * 0.05f, level * 0.15f);
+        //    }
+        //}
+        //public void ClearDisplay()
+        //{
+        //    if (disp != null)
+        //    {
+        //        GameObject.Destroy(disp);
+        //        disp = null;
+        //    }
+        //    if (children != null)
+        //    {
+        //        for (int xi = 0; xi < 2; xi++)
+        //            for (int yi = 0; yi < 2; yi++)
+        //                for (int zi = 0; zi < 2; zi++)
+        //                    children[xi, yi, zi].ClearDisplay();
+        //    }
+        //}
     }
 }
