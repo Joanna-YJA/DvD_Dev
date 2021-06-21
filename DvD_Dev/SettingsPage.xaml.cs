@@ -40,7 +40,7 @@ namespace DvD_Dev
         {
             if (resultCode == SDKError.NO_ERROR)
             {
-                System.Diagnostics.Debug.WriteLine("Register app successfully.");
+                //System.Diagnostics.Debug.WriteLine("Register app successfully.");
 
                 //Must in UI thread
                 await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, async () =>
@@ -67,8 +67,8 @@ namespace DvD_Dev
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine("SDK register failed, the error is: ");
-                System.Diagnostics.Debug.WriteLine(resultCode.ToString());
+                //System.Diagnostics.Debug.WriteLine("SDK register failed, the error is: ");
+                //System.Diagnostics.Debug.WriteLine(resultCode.ToString());
             }
         }
 

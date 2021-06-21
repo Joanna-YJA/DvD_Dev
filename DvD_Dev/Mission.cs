@@ -44,10 +44,10 @@ namespace DvD_Dev
 
             state = wpHandler.GetCurrentState();
             //test remove condition
-            if (state.Equals(WaypointMissionState.READY_TO_EXECUTE))
-                System.Diagnostics.Debug.WriteLine("Mission ready to execute");
-            else
-                System.Diagnostics.Debug.WriteLine("MISSION UPLOAD FAILURE");
+            //if (state.Equals(WaypointMissionState.READY_TO_EXECUTE))
+                //System.Diagnostics.Debug.WriteLine("Mission ready to execute");
+           // else
+                //System.Diagnostics.Debug.WriteLine("MISSION UPLOAD FAILURE");
 
             //      }
 

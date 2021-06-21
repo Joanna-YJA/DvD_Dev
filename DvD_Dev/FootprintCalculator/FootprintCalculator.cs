@@ -78,7 +78,7 @@ namespace DvD_Dev
             fpHeight = altitudeM * (Math.Tan(angleU) - Math.Tan(angleD));
             fpHeight = fpHeight / 1000 * 2;
 
-            System.Diagnostics.Debug.WriteLine("fpBase: " + fpBase + " fpHeight: " + fpHeight);
+            //System.Diagnostics.Debug.WriteLine("fpBase: " + fpBase + " fpHeight: " + fpHeight);
 
             ConvertLatLonDimensions(initCoord);
         }
@@ -104,9 +104,9 @@ namespace DvD_Dev
      
         private static void PrintArr(double[] arr)
         {
-            System.Diagnostics.Debug.WriteLine("Printing array... ");
-            foreach (double val in arr)
-                System.Diagnostics.Debug.WriteLine(val + " ");
+            //System.Diagnostics.Debug.WriteLine("Printing array... ");
+            //foreach (double val in arr)
+                //System.Diagnostics.Debug.WriteLine(val + " ");
         }
 
         public List<BasicGeoposition> FindFootprintInnerSide(List<BasicGeoposition> coordList)

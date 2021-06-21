@@ -83,7 +83,7 @@ namespace DvD_Dev
             string navItemTag,
             Windows.UI.Xaml.Media.Animation.NavigationTransitionInfo transitionInfo)
         {
-            System.Diagnostics.Debug.WriteLine("Navigating to " + navItemTag);
+            //System.Diagnostics.Debug.WriteLine("Navigating to " + navItemTag);
             Type _page = null;
             if (navItemTag == "settings")
             {

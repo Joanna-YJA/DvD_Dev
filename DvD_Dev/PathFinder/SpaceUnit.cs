@@ -1,6 +1,9 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
+using Windows.Devices.Geolocation;
+using Windows.UI;
 
 namespace DvD_Dev
 {
@@ -88,192 +91,6 @@ namespace DvD_Dev
         //    targetDroneBB.maxVisibleDistance += 5f;
         //}
 
-        // Move it to the next position
-        private void MovementUpdate()
-        {
-           // position = transform.position;
-
-            // Find next waypoint
-            Vector3 next = Vector3.Zero;
-            Vector3 nextSpot = Vector3.Zero;
-            if (wayPoints != null && wayPoints.Count > 0)
-            {
-                next = wayPoints.Peek();
-                nextSpot = next + ((lastWayPoint == Vector3.Zero || wayPoints.Count == 1) ? Vector3.Zero : Vector3.Normalize(next - lastWayPoint) * wayPointRange);
-
-                while (wayPoints.Count > 0 && (nextSpot - position).LengthSquared() < wayPointRange * wayPointRange)
-                {
-                    lastWayPoint = wayPoints.Dequeue();
-                    if (wayPoints.Count > 0)
-                    {
-                        next = wayPoints.Peek();
-                        nextSpot = next + ((lastWayPoint == Vector3.Zero || wayPoints.Count == 1) ? Vector3.Zero : Vector3.Normalize(next - lastWayPoint) * wayPointRange);
-                    }
-                    else if (state == UnitState.MOVING)
-                    {
-                        state = UnitState.IDLE;
-                        standPoint = lastWayPoint;
-                    }
-                }
-            }
-            if (wayPoints == null || wayPoints.Count == 0)
-            {
-                lastWayPoint = Vector3.Zero;
-                velocity = Vector3.Zero;
-               // PathfindingModeOff();
-
-            }
-
-
-            // Check line of sight to the nextnext way point
-            // If LOS is found, we can skip the immediate next waypoint
-            pathFindingRecheckTimer -= U.limitedDeltaTime;
-            if (pathFindingRecheckTimer <= 0)
-            {
-                bool jumped = false;
-                if (wayPoints != null && wayPoints.Count > 1)
-                {
-                    Queue<Vector3>.Enumerator e = wayPoints.GetEnumerator();
-                    e.MoveNext(); e.MoveNext();
-                    Vector3 nextnext = e.Current;
-                    //if (LineOfSightRaycast(position, nextnext))
-                    //{
-                    //    lastWayPoint = wayPoints.Dequeue();
-                    //    next = wayPoints.Peek();
-                    //    nextSpot = next + (wayPoints.Count == 1 ? Vector3.Zero : Vector3.Normalize(next - lastWayPoint) * wayPointRange);
-                    //    jumped = true;
-                    //    velocity = Vector3.Zero;
-                    //}
-                }
-
-                //if (!jumped && wayPoints != null && wayPoints.Count > 0 && !LineOfSightRaycast(position, next))
-                //{
-                //    List<Node> tempPath = spaceGraph.FindPath(spaceGraph.LazyThetaStar, position, next, space);
-                //    if (tempPath != null)
-                //    {
-                //        Queue<Vector3> newPath = new Queue<Vector3>();
-                //        foreach (Node node in tempPath)
-                //        {
-                //            newPath.Enqueue(node.center);
-                //        }
-                //        wayPoints.Dequeue();
-                //        while (wayPoints.Count > 0) newPath.Enqueue(wayPoints.Dequeue());
-                //        wayPoints = newPath;
-                //    }
-                //}
-                pathFindingRecheckTimer += pathFindingRecheckInterval;
-            }
-
-            // Decelerate to zero velocity when it reaches waypoint
-            // Based on the current velocity, calculate how much distance it would take for spaceship to decelerate to zero velocity
-            float stoppingDistance = (float)System.Math.Pow(velocity.Length(), 2) / (2 * acceleration);
-
-            // If it is less than or equal a multiple of stopping distance, start decelerating
-            bool decelerating = false;
-            if ((nextSpot - position).Length() <= stoppingDistance * 2f)
-            {
-                decelerating = true;
-            }
-
-            Vector3 targetVelocity = Vector3.Zero;
-
-            // If it is very near the waypoint, lower the speed to 1m/s
-            // This should not be necessary if deceleration works, but keep this as fallback
-            if ((nextSpot - position).Length() < 1f)
-            {
-                velocity = Vector3.Normalize(nextSpot - position) * 1f;
-            }
-            // Gradually decelerate to 1m/s as it approaches waypoint
-            else if (decelerating)
-            {
-                if (wayPoints != null && wayPoints.Count > 0)
-                {
-                    targetVelocity = Vector3.Normalize(nextSpot - position) * 1f;
-                }
-                if ((targetVelocity - velocity).LengthSquared() < U.Sq(acceleration * U.limitedDeltaTime))
-                {
-                    velocity = targetVelocity;
-                }
-                else
-                {
-
-                    velocity += Vector3.Normalize(targetVelocity - velocity) * acceleration * U.limitedDeltaTime;
-                }
-            }
-            else
-            {
-                // Accelerate to max velocity
-
-                if (wayPoints != null && wayPoints.Count > 0)
-                {
-                    targetVelocity = Vector3.Normalize(nextSpot - position) * maxVelocity;
-                }
-                if ((targetVelocity - velocity).LengthSquared() < U.Sq(acceleration * U.limitedDeltaTime))
-                {
-                    velocity = targetVelocity;
-                }
-                else
-                {
-                    velocity += Vector3.Normalize(targetVelocity - velocity) * acceleration * U.limitedDeltaTime;
-                }
-            }
-
-            // Repulsive force from SpaceUnits
-            //Collider[] touch = Physics.OverlapSphere(position, radius + repulsiveRadius);
-            //foreach (Collider col in touch)
-            //{
-            //    SpaceUnit ship = col.GetComponent<SpaceUnit>();
-            //    if (ship != null)
-            //    {
-            //        float d = (ship.position - position).Length() - radius - ship.radius;
-            //        Vector3 acc = (position - ship.position).normalized * repulsiveCoeff * MathF.Pow(1 - MathF.Clamp01(d / repulsiveRadius), repulsivePow);
-            //        //Vector3 acc = (position - ship.position).normalized * repulsiveCoeff / (d + radius) / (d + radius);
-            //        velocity += acc * U.limitedDeltaTime;
-            //    }
-            //}
-
-            //// Repulsive force from walls
-            //for (int i = 0; i < 16; i++)
-            //{
-            //    Ray ray = new Ray(position, Random.onUnitSphere);
-            //    RaycastHit res;
-            //    if (Physics.Raycast(ray, out res, radius + repulsiveRadius) && res.collider.GetComponent<SpaceUnit>() == null)
-            //    {
-            //        float d = (res.point - position).Length() - radius;
-            //        Vector3 acc = (position - res.point).normalized * repulsiveCoeff * MathF.Pow(1 - MathF.Clamp01(d / repulsiveRadius), repulsivePow);
-            //        velocity += acc * U.limitedDeltaTime / 16 * 8;
-            //    }
-            //}
-
-            //position += velocity * U.limitedDeltaTime;
-
-            //// Update position
-            //transform.position = position;
-
-            //if (targetVelocity.LengthSquared() > 0.0001f)
-            //{
-            //    transform.rotation = Quaternion.Lerp(Quaternion.identity, Quaternion.FromToRotation(transform.forward, targetVelocity), U.limitedDeltaTime * 5) * transform.rotation;
-            //}
-            //Rigidbody body = GetComponent<Rigidbody>();
-            //body.velocity = Vector3.Zero;
-            //body.angularVelocity = Vector3.Zero;
-            //if (Settings.showShipTrajectory)
-            //{
-            //    DrawTrajectory();
-            //}
-            //else if (line != null)
-            //{
-            //    ClearTrajectory();
-            //}
-
-
-            // Level the SpaceUnit with the horizon at all times
-            // Except when it is facing close to straight up to prevent spinning phenomenom
-            //Vector3 eulerRotation = transform.rotation.eulerAngles;
-            //if (Vector3.Angle(gameObject.transform.forward, Vector3.up) > 25) { transform.rotation = Quaternion.Euler(eulerRotation.X, eulerRotation.Y, 0); }
-
-        }
-
         //private LineRenderer line = null;
         //private LineRenderer thickLine = null;
 
@@ -334,25 +151,37 @@ namespace DvD_Dev
         //    }
         //}
 
-        public void MoveOrder(Vector3 targetPoint, float range)
+        public void MoveOrder(Vector3 targetPoint, float range, MapController mapController)
         {
-            MoveOrder(spaceGraph.FindPath(spaceGraph.LazyThetaStar, position, targetPoint, space), range);
+            MoveOrder(spaceGraph.FindPath(spaceGraph.LazyThetaStar, position, targetPoint, space), range, mapController);
         }
 
-        public void MoveOrder(List<Node> wp, float range)
+        public void MoveOrder(List<Node> wp, float range, MapController mapController)
         {
+            ////System.Diagnostics.Debug.WriteLine("Calling SpaceUnit.MoveOrder by node");
             if (wp == null || !movable) return;
             wayPoints = new Queue<Vector3>();
+            List<BasicGeoposition> posList = new List<BasicGeoposition>();
+            ////System.Diagnostics.Debug.WriteLine("Path between 2 points");
             foreach (Node node in wp)
             {
                 wayPoints.Enqueue(node.center);
+                //MapController.DropPin(new BasicGeoposition { }, "Path");
+                ////System.Diagnostics.Debug.WriteLine(node.center);
+                float x = PathFinder.ConvertLocalToLatLon(node.center.X, node.center.Z)[0];
+                float z = PathFinder.ConvertLocalToLatLon(node.center.X, node.center.Z)[1];
+                mapController.DropPin(new BasicGeoposition { Latitude = x, Longitude = z, Altitude = node.center.Y }, "PATH");
+                posList.Add(new BasicGeoposition { Latitude = x, Longitude = z, Altitude = node.center.Y });
             }
+
+            mapController.DrawLine(posList, Color.FromArgb(255, 140, 0, 255));
             wayPointRange = range;
             state = UnitState.MOVING;
         }
 
         public void MoveOrder(List<Vector3> wp, float range)
         {
+            ////System.Diagnostics.Debug.WriteLine("Calling SpaceUnit.MoveOrder by vector");
             if (wp == null || !movable) return;
             wayPoints = new Queue<Vector3>();
             foreach (Vector3 vec in wp)

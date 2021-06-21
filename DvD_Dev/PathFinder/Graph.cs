@@ -11,7 +11,6 @@ namespace DvD_Dev
     {
         public int index;
         public int connectIndex = 0;
-        [JsonIgnore]
         public List<Arc> arcs;
         public Vector3 center;
         public Node(Vector3 _center, int _index)
@@ -25,6 +24,8 @@ namespace DvD_Dev
     {
         public Node from, to;
         public float distance;
+
+        private Arc() { }
         public Arc(Node _from, Node _to)
         {
             from = _from;
@@ -174,6 +175,7 @@ namespace DvD_Dev
             temp.Add(node);
             while (node.parent != null)
             {
+                //System.Diagnostics.Debug.WriteLine("For node " + node.center + " ,Adding node's parent " + node.parent.center + " to List<Node>");
                 temp.Add(node.parent);
                 node = node.parent;
             }
@@ -202,6 +204,15 @@ namespace DvD_Dev
         }
         public List<List<Node>> FindPath(PathFindingMethod method, Vector3 source, List<Vector3> destinations, Octree space, H h = null)
         {
+            //foreach (Node n in this.nodes)
+            //{
+            //    if (n.center.Equals(new Vector3(-58.625f, 10.625f, 141.375f)))
+            //    {
+            //        foreach (Arc a in n.arcs)
+            //            System.Diagnostics.Debug.WriteLine(n.index + ")In Graph find path, Target node n is connected to " + a.to.center);
+            //    }
+            //}
+            //System.Diagnostics.Debug.WriteLine("When finding path from " + source + " to [" + String.Join(". ", destinations) + "]");
             List<Node> sourceNeighbors = null;
             //if (space.Find(source).blocked) return new List<List<Node>>();
             if (type == GraphType.CENTER)
@@ -216,6 +227,12 @@ namespace DvD_Dev
             {
                 sourceNeighbors = space.FindBoundingCrossedGraphNodes(source);
             }
+            //System.Diagnostics.Debug.Write("sourceNeighbors: [");
+            //foreach (Node sn in sourceNeighbors)
+            //    System.Diagnostics.Debug.Write(sn.center + ", ");
+            //System.Diagnostics.Debug.Write("]\n");
+
+
 
             Node tempSourceNode = AddTemporaryNode(source, sourceNeighbors);
             List<Node> tempDestinationNodes = new List<Node>();
@@ -236,9 +253,22 @@ namespace DvD_Dev
                     destinationNeighbors = space.FindBoundingCrossedGraphNodes(destination);
                 }
 
+                //System.Diagnostics.Debug.WriteLine("type: " + type);
+                //System.Diagnostics.Debug.Write("destinationNeighbors: [");
+                //foreach (Node dn in destinationNeighbors)
+                //{
+                //    if (dn != null) System.Diagnostics.Debug.Write(dn.center + ", ");
+                //}
+                //System.Diagnostics.Debug.Write("]\n");
+
                 tempDestinationNodes.Add(AddTemporaryNode(destination, destinationNeighbors));
             }
-            List<List<Node>> result = FindPath(method, tempSourceNode, tempDestinationNodes, space, h);
+            //System.Diagnostics.Debug.Write("sourceNeighbors: [");
+            //foreach (Node sn in sourceNeighbors)
+            //    System.Diagnostics.Debug.Write(sn.center + ", ");
+            //System.Diagnostics.Debug.Write("]\n");
+
+            List <List<Node>> result = FindPath(method, tempSourceNode, tempDestinationNodes, space, h);
             RemoveTemporaryNodes();
 
             return result;
@@ -458,13 +488,24 @@ namespace DvD_Dev
                 result.Add(Backtrack(current));
                 open.Add(ref current.handle, current);
             }
-            //Debug.Log("time: " + (Time.realtimeSinceStartup - t) + " NodeCount: " + nodeCount + " NewNodeCount: " + newNodeCount);
+            //System.Diagnostics.Debug.WriteLine("time: " + (Time.realtimeSinceStartup - t) + " NodeCount: " + nodeCount + " NewNodeCount: " + newNodeCount);
             return result;
         }
 
 
         public List<List<Node>> LazyThetaStar(Node source, List<Node> destinations, Octree space, H h = null)
         {
+            Node testFocus = null;
+            foreach (Node n in this.nodes)
+            {
+                //if (n.center.Equals(new Vector3(-57.06298f, 10f, 142.9338f)))
+                if(n.index == -1)
+                {
+                    testFocus = n;
+                    //foreach (Arc a in n.arcs)
+                    //    System.Diagnostics.Debug.WriteLine(n.index + ")In Lazy Theta Star, Target node n is connected to " + a.to.center);
+                }
+            }
             //float t = Time.realtimeSinceStartup;
             int nodeCount = 0;
             int newNodeCount = 0;
@@ -546,6 +587,12 @@ namespace DvD_Dev
                         current.g = realg;
                     } //
                     if (current.index == destination.index) break;
+                    //System.Diagnostics.Debug.WriteLine("current.index " + current.index + " Arcs connnected to current node " + current.center);
+                    //System.Diagnostics.Debug.WriteLine("testFocus == null? " + (testFocus == null) + " testFocus == current? " + (testFocus == current) + " testFocus.center " + testFocus.center);
+                    //foreach (Arc ac in current.arcs)
+                    //    System.Diagnostics.Debug.WriteLine(ac.to.center + ", ");
+                    //System.Diagnostics.Debug.WriteLine("]\n");
+
                     foreach (Arc a in current.arcs)
                     {
                         NodeInfo successor;
@@ -553,6 +600,8 @@ namespace DvD_Dev
                         {
                             newNodeCount++;
                             successor = new NodeInfo(a.to);
+                            //System.Diagnostics.Debug.WriteLine("Does a.t/succesor " + successor.center + " has any arcs? arc count: " + a.to.arcs.Count);
+                            //System.Diagnostics.Debug.WriteLine("Index of successor node: " + successor.index);
                             successor.g = float.MaxValue;
                             successor.h = h(successor, destination);
                             infoTable[a.to.index] = successor;
@@ -565,6 +614,7 @@ namespace DvD_Dev
                             float gNew = parent.g + (successor.center - parent.center).Length();
                             if (successor.g > gNew)
                             {
+                                //System.Diagnostics.Debug.WriteLine("successor.g > gNew for successor " + successor.center + " and parent " + parent.center);
                                 successor.parent = parent;
                                 successor.g = gNew;
                                 successor.f = successor.g + successor.h;
@@ -573,6 +623,7 @@ namespace DvD_Dev
                             {
                                 if (successor.open)
                                     open.Delete(successor.handle);
+                               //System.Diagnostics.Debug.WriteLine("Node's successor " + successor.center + " is added back to heap");
                                 open.Add(ref successor.handle, successor);
                                 successor.open = true;
                             }
@@ -596,7 +647,17 @@ namespace DvD_Dev
                 result.Add(Backtrack(current));
                 open.Add(ref current.handle, current);
             }
-            //Debug.Log("time: " + (Time.realtimeSinceStartup - t) + " NodeCount: " + nodeCount + " NewNodeCount: " + newNodeCount);
+            //System.Diagnostics.Debug.WriteLine("time: " + (Time.realtimeSinceStartup - t) + " NodeCount: " + nodeCount + " NewNodeCount: " + newNodeCount);
+            //System.Diagnostics.Debug.WriteLine("Result of Lazy Theta Star: [");
+            //foreach (List<Node> lr in result)
+            //{
+            //    if (lr != null)
+            //        foreach (Node r in lr)
+            //        {
+            //            if (r != null) System.Diagnostics.Debug.WriteLine(r.center + ", ");
+            //        }
+            //}
+            //System.Diagnostics.Debug.WriteLine("]\n");
             return result;
         }
     }

@@ -113,10 +113,10 @@ namespace DvD_Dev
 
             //testing
             PathFinder pathFinder = new PathFinder();
-            pathFinder.InitPathFinder();
+            pathFinder.InitPathFinder(this);
         }
 
-        private void DropPin(BasicGeoposition pos, String title)
+        public void DropPin(BasicGeoposition pos, String title)
         {
             Geopoint tappedPoint = new Geopoint(pos);
 
@@ -144,7 +144,7 @@ namespace DvD_Dev
             Map.Layers.Add(LandmarksLayer);
         }
 
-        private void DrawLine(List<BasicGeoposition> posList, Color color)
+        public void DrawLine(List<BasicGeoposition> posList, Color color)
         {
             var route = new MapPolyline
             {
@@ -199,7 +199,7 @@ namespace DvD_Dev
         private void printLocation(Object sender, LocationCoordinate2D? location)
         {
             string status = "Location changed to " + location.ToString();
-            //System.Diagnostics.Debug.WriteLine(status);
+            ////System.Diagnostics.Debug.WriteLine(status);
         }
     }
 }

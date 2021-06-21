@@ -29,26 +29,30 @@ namespace DvD_Dev
             this.spaceGraph = spaceGraph;
         }
 
-        public void MoveOrder(Vector3 target)
+        public void MoveOrder(Vector3 target, MapController mapController)
         {
             List<Vector3> pathFindingDest = new List<Vector3>();
             foreach (SpaceUnit unit in activeUnits)
             {
-                //pathFindingDest.Add(unit.position);
+                pathFindingDest.Add(unit.position);
             }
             if (pathFindingDest.Count > 0)
             {
+                ////System.Diagnostics.Debug.WriteLine("Finding path from " + target + " to " + pathFindingDest[0]);
                 List<List<Node>> allWayPoints = spaceGraph.FindPath(spaceGraph.LazyThetaStar, target, pathFindingDest, space);
                 //List<List<Vector3>> allWayPointsAfterLOSCheck = new List<List<Vector3>>();
+                ////System.Diagnostics.Debug.WriteLine("Printing List<List<Node>> allWayPoints, allWayPoints[0] is null? " + (allWayPoints[0] == null));
                 if (allWayPoints[0] != null)
                 {
                     foreach (List<Node> waypointList in allWayPoints)
                     {
+                        ////System.Diagnostics.Debug.WriteLine("List<Node>...");
                         foreach (Node node in waypointList)
                         {
                             // convert the node to the proper real world scale location
                             // since this calculated node center is in the 0.1 scale
                             node.center *= 10;
+                            ////System.Diagnostics.Debug.WriteLine(node.center);
                         }
 
                         /* This is the attempt to calculate the new LOS-checked waypoints are start
@@ -101,7 +105,8 @@ namespace DvD_Dev
 
                 for (int i = 0; i < activeUnits.Count; i++)
                 {
-                    activeUnits[i].MoveOrder(U.InverseList(allWayPoints[i]), PathFinder.defaultWaypointSize * MathF.Pow(activeUnits.Count, 0.333f));
+                    ////System.Diagnostics.Debug.WriteLine("Calling SpaceUnit.MoveOrder");
+                    activeUnits[i].MoveOrder(U.InverseList(allWayPoints[i]), PathFinder.defaultWaypointSize * MathF.Pow(activeUnits.Count, 0.333f), mapController);
                     //activeUnits[i].MoveOrder(U.InverseList(allWayPointsAfterLOSCheck[i]), Main.defaultWaypointSize * MathF.Pow(activeUnits.Count, 0.333f));
                 }
             }

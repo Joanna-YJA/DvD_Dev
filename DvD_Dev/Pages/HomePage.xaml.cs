@@ -38,7 +38,7 @@ namespace DvD_Dev
         {
             if (DJISDKManager.Instance.appActivationState.Equals(AppActivationState.ACTIVATED) )
             {
-                System.Diagnostics.Debug.WriteLine("Register app successfully.");
+                //System.Diagnostics.Debug.WriteLine("Register app successfully.");
 
                 //Must in UI thread
                 await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, async () =>
@@ -64,8 +64,8 @@ namespace DvD_Dev
 
             } else
             {
-                System.Diagnostics.Debug.WriteLine("SDK registration failed, cannot initialize video playback components.");
-                System.Diagnostics.Debug.WriteLine(DJISDKManager.Instance.appActivationState.ToString());
+                //System.Diagnostics.Debug.WriteLine("SDK registration failed, cannot initialize video playback components.");
+                //System.Diagnostics.Debug.WriteLine(DJISDKManager.Instance.appActivationState.ToString());
             }
         }
 

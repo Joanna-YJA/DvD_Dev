@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System;
 using System.Numerics;
 using System.Reflection;
+using g3;
 
 namespace DvD_Dev
 {
@@ -30,22 +31,27 @@ namespace DvD_Dev
             root = new OctreeNode(0, new int[] { 0, 0, 0 }, null, this);
         }
 
-        //public void BuildFromMeshes(Mesh[] meshes, float normalExpansion = 0)
-        //{
-        //    for (int i = 0; i < meshes.Length; i++)
-        //    {
-        //        int[] triangles = meshes[i].triangles;
-        //        Vector3[] verts = meshes[i].vertices;
-        //        Vector3[] vertsNormal = meshes[i].normals;
-        //        for (int j = 0; j < triangles.Length / 3; j++)
-        //        {
-        //            DivideTriangle(
-        //                verts[triangles[3 * j]] + vertsNormal[triangles[3 * j]] * normalExpansion,
-        //                verts[triangles[3 * j + 1]] + vertsNormal[triangles[3 * j + 1]] * normalExpansion,
-        //                verts[triangles[3 * j + 2]] + vertsNormal[triangles[3 * j + 2]] * normalExpansion, true);
-        //        }
-        //    }
-        //}
+        public void BuildFromMeshes(DMesh3[] meshes, float normalExpansion = 0)
+        {
+            for (int i = 0; i < meshes.Length; i++)
+            {
+                DVector<int> triangles = meshes[i].TrianglesBuffer;
+                List<Vector3d> verts = (List<Vector3d>) meshes[i].Vertices();
+                RefCountVector verticesRefCount = meshes[i].VerticesRefCounts;
+                List<Vector3d> vertsNormal = new List<Vector3d>();
+                foreach(int vid in verticesRefCount)
+                {
+                    vertsNormal.Add(meshes[i].GetVertexNormal(vid));
+                }
+                for (int j = 0; j < triangles.Length / 3; j++)
+                {
+                    DivideTriangle(
+                        verts[triangles[3 * j]] + vertsNormal[triangles[3 * j]] * normalExpansion,
+                        verts[triangles[3 * j + 1]] + vertsNormal[triangles[3 * j + 1]] * normalExpansion,
+                        verts[triangles[3 * j + 2]] + vertsNormal[triangles[3 * j + 2]] * normalExpansion, true);
+                }
+            }
+        }
         //public void BuildFromGameObject(GameObject gameObject, float normalExpansion = 0, bool recursive = true)
         //{
         //    if (gameObject.GetComponent<MeshFilter>() != null)
@@ -171,7 +177,7 @@ namespace DvD_Dev
             current.containsBlocked = current.blocked;
         }
 
-        public void DivideTriangle(Vector3 p1, Vector3 p2, Vector3 p3, bool markAsBlocked = false)
+        public void DivideTriangle(Vector3d p1, Vector3d p2, Vector3d p3, bool markAsBlocked = false)
         {
             root.DivideTriangleUntilLevel(p1, p2, p3, maxLevel, markAsBlocked);
         }
@@ -194,10 +200,9 @@ namespace DvD_Dev
             {
                 //FloorToIntSnap(p1g[i], out p[0, i]);
                 //FloorToIntSnap(p2g[i], out p[1, i]);
-                String propName = (char) ((uint)'X' + i) + "";
-                PropertyInfo prop = p1.GetType().GetProperty(propName);
-                p[0, i] =(int) MathF.Round((float) prop.GetValue(p1g));
-                p[1, i] =(int) MathF.Round((float)prop.GetValue(p2g));
+     
+                p[0, i] =(int) MathF.Round(p1g.Get(i));
+                p[1, i] =(int) MathF.Round(p2g.Get(i));
                 d[i] = p[1, i] - p[0, i];
                 if (d[i] < 0)
                 {
@@ -748,17 +753,10 @@ namespace DvD_Dev
             {
                 Vector3 a = Vector3.Zero;
                 //FloorToIntSnap(p2g[i], out p[1, i]);
-                String propName = (char)((uint)'X' + i) + "";
-                PropertyInfo prop = p1.GetType().GetProperty(propName);
-                String nextPropName = (char)((uint)'X' + (i + 1) % 3) + "";
-                PropertyInfo nextProp = p1.GetType().GetProperty(nextPropName);
-                String nextNextPropName = (char)((uint)'X' + (i + 2) % 3) + "";
-                PropertyInfo nextNextProp = p1.GetType().GetProperty(nextNextPropName);
-
-                prop.SetValue(a, 1);
+                a.Set(i, 1);
                 a = Vector3.Cross(a, p2 - p1);
                 float d = MathF.Abs(Vector3.Dot(p1, a));
-                float rr = r * (MathF.Abs((float) nextProp.GetValue(a)) + MathF.Abs((float) nextNextProp.GetValue(a)));
+                float rr = r * (MathF.Abs(a.Get((i + 1) % 3)) + MathF.Abs(a.Get((i + 2) % 3)));
                 if (d > rr) return false;
             }
 
@@ -766,47 +764,40 @@ namespace DvD_Dev
             return true;
         }
 
-        public bool IntersectTriangle(Vector3 p1, Vector3 p2, Vector3 p3, float tolerance = 0)
+        public bool IntersectTriangle(Vector3d p1, Vector3d p2, Vector3d p3, float tolerance = 0)
         {
-            Vector3 c = center;
+            Vector3 sCenter = center;
+            Vector3d c = new Vector3d(sCenter.X, sCenter.Y, sCenter.Z);
             float r = size / 2 - tolerance;
             p1 -= c;
             p2 -= c;
             p3 -= c;
-            float xm, xp, ym, yp, zm, zp;
-            xm = MathF.Min(p1.X, MathF.Min(p2.X, p3.X));
-            xp = MathF.Max(p1.X, MathF.Max(p2.X, p3.X));
-            ym = MathF.Min(p1.Y, MathF.Min(p2.Y, p3.Y));
-            yp = MathF.Max(p1.Y, MathF.Max(p2.Y, p3.Y));
-            zm = MathF.Min(p1.Z, MathF.Min(p2.Z, p3.Z));
-            zp = MathF.Max(p1.Z, MathF.Max(p2.Z, p3.Z));
+            double xm, xp, ym, yp, zm, zp;
+            xm = Math.Min(p1.x, Math.Min(p2.x, p3.x));
+            xp = Math.Max(p1.x, Math.Max(p2.x, p3.x));
+            ym = Math.Min(p1.y, Math.Min(p2.y, p3.y));
+            yp = Math.Max(p1.y, Math.Max(p2.y, p3.y));
+            zm = Math.Min(p1.z, Math.Min(p2.z, p3.z));
+            zp = Math.Max(p1.z, Math.Max(p2.z, p3.z));
             if (xm >= r || xp < -r || ym >= r || yp < -r || zm >= r || zp < -r) return false;
 
-            Vector3 n = Vector3.Cross(p2 - p1, p3 - p1);
-            float d = MathF.Abs(Vector3.Dot(p1, n));
-            if (d > r * (MathF.Abs(n.X) + MathF.Abs(n.Y) + MathF.Abs(n.Z))) return false;
+            Vector3d n = (p2 - p1).Cross(p3 - p1);
+            double d = Math.Abs(p1.Dot(n));
+            if (d > r * (Math.Abs(n.x) + Math.Abs(n.y) + Math.Abs(n.z))) return false;
 
-            Vector3[] p = { p1, p2, p3 };
-            Vector3[] f = { p3 - p2, p1 - p3, p2 - p1 };
+            Vector3d[] p = { p1, p2, p3 };
+            Vector3d[] f = { p3 - p2, p1 - p3, p2 - p1 };
             for (int i = 0; i < 3; i++)
             {
                 for (int j = 0; j < 3; j++)
                 {
-                    Vector3 a = Vector3.Zero;
-                    String propName = (char)((uint)'X' + i) + "";
-                    PropertyInfo prop = p1.GetType().GetProperty(propName);
-                    String nextPropName = (char)((uint)'X' + (i + 1) % 3) + "";
-                    PropertyInfo nextProp = p1.GetType().GetProperty(nextPropName);
-                    String nextNextPropName = (char)((uint)'X' + (i + 2) % 3) + "";
-                    PropertyInfo nextNextProp = p1.GetType().GetProperty(nextNextPropName);
-
-
-                    prop.SetValue(a, 1);
-                    a = Vector3.Cross(a, f[j]);
-                    float d1 = Vector3.Dot(p[j], a);
-                    float d2 = Vector3.Dot(p[(j + 1) % 3], a);
-                    float rr = r * (MathF.Abs((float) nextProp.GetValue(a)) + MathF.Abs((float) nextNextProp.GetValue(a)));
-                    if (MathF.Min(d1, d2) > rr || MathF.Max(d1, d2) < -rr) return false;
+                    Vector3d a = Vector3d.Zero;
+                    a[i] = 1;
+                    a = a.Cross(f[j]);
+                    double d1 = p[j].Dot(a);
+                    double d2 = p[(j + 1) % 3].Dot(a); 
+                    double rr = r * (Math.Abs(a[(i + 1) % 3]) + Math.Abs(a[(i + 2) % 3])); ;
+                    if (Math.Min(d1, d2) > rr || Math.Max(d1, d2) < -rr) return false;
                 }
             }
             return true;
@@ -819,15 +810,8 @@ namespace DvD_Dev
             float r2 = radius * radius;
             for (int i = 0; i < 3; i++)
             {
-                String propName = (char)((uint)'X' + i) + "";
-                PropertyInfo prop = sphereCenter.GetType().GetProperty(propName);
-
-                float sphereVal = (float) prop.GetValue(sphereCenter);
-                float c1Val = (float)prop.GetValue(c1);
-                float c2Val = (float)prop.GetValue(c2);
-
-                if (sphereVal < c1Val) r2 -= (sphereVal - c1Val) * (sphereVal - c1Val);
-                else if (sphereVal > c2Val) r2 -= (sphereVal - c2Val) * (sphereVal - c2Val);
+                if (sphereCenter.Get(i) < c1.Get(i)) r2 -= (sphereCenter.Get(i) - c1.Get(i)) * (sphereCenter.Get(i) - c1.Get(i));
+                else if (sphereCenter.Get(i) > c2.Get(i)) r2 -= (sphereCenter.Get(i) - c2.Get(i)) * (sphereCenter.Get(i) - c2.Get(i));
             }
             return r2 > 0;
         }
@@ -853,7 +837,7 @@ namespace DvD_Dev
             }
         }
 
-        public void DivideTriangleUntilLevel(Vector3 p1, Vector3 p2, Vector3 p3, int maxLevel, bool markAsBlocked = false)
+        public void DivideTriangleUntilLevel(Vector3d p1, Vector3d p2, Vector3d p3, int maxLevel, bool markAsBlocked = false)
         {
             if (IntersectTriangle(p1, p2, p3))
             {
