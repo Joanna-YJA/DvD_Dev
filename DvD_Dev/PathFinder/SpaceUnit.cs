@@ -170,11 +170,11 @@ namespace DvD_Dev
                 ////System.Diagnostics.Debug.WriteLine(node.center);
                 float x = PathFinder.ConvertLocalToLatLon(node.center.X, node.center.Z)[0];
                 float z = PathFinder.ConvertLocalToLatLon(node.center.X, node.center.Z)[1];
-                mapController.DropPin(new BasicGeoposition { Latitude = x, Longitude = z, Altitude = node.center.Y }, "PATH");
+                //mapController.DropPin(new BasicGeoposition { Latitude = x, Longitude = z, Altitude = node.center.Y }, "PATH");
                 posList.Add(new BasicGeoposition { Latitude = x, Longitude = z, Altitude = node.center.Y });
             }
 
-            mapController.DrawLine(posList, Color.FromArgb(255, 140, 0, 255));
+            //mapController.DrawLine(posList, Color.FromArgb(255, 140, 0, 255));
             wayPointRange = range;
             state = UnitState.MOVING;
         }

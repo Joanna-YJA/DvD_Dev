@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System;
 using System.Numerics;
+using Esri.ArcGISRuntime.Geometry;
 
 namespace DvD_Dev
 {
@@ -101,7 +102,14 @@ namespace DvD_Dev
                     }
 
                 }
-
+                List<MapPoint> linePoints = new List<MapPoint>();
+                foreach (List<Node> waypointList in allWayPoints)
+                    foreach (Node node in waypointList)
+                    {
+                        linePoints.Add(new MapPoint(node.center.X, node.center.Y, node.center.Z, PathFinder.spatialRef));
+                        //System.Diagnostics.Debug.WriteLine("Path Waypoint " + node.center.ToString());
+                    }
+                MapPage.ShowPath(linePoints);
 
                 for (int i = 0; i < activeUnits.Count; i++)
                 {

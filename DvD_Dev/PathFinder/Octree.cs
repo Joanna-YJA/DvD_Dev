@@ -2,8 +2,11 @@
 using System.Collections.Generic;
 using System;
 using System.Numerics;
+using System.Linq;
 using System.Reflection;
 using g3;
+using NetTopologySuite.Geometries;
+using NetTopologySuite.Mathematics;
 
 namespace DvD_Dev
 {
@@ -31,18 +34,13 @@ namespace DvD_Dev
             root = new OctreeNode(0, new int[] { 0, 0, 0 }, null, this);
         }
 
-        public void BuildFromMeshes(DMesh3[] meshes, float normalExpansion = 0)
+        public void BuildFromMeshes(List<Mesh> meshes, float normalExpansion = 0)
         {
-            for (int i = 0; i < meshes.Length; i++)
+            for (int i = 0; i < meshes.Count; i++)
             {
-                DVector<int> triangles = meshes[i].TrianglesBuffer;
-                List<Vector3d> verts = (List<Vector3d>) meshes[i].Vertices();
-                RefCountVector verticesRefCount = meshes[i].VerticesRefCounts;
-                List<Vector3d> vertsNormal = new List<Vector3d>();
-                foreach(int vid in verticesRefCount)
-                {
-                    vertsNormal.Add(meshes[i].GetVertexNormal(vid));
-                }
+                int[] triangles = meshes[i].triangles;
+                Vector3[] verts = meshes[i].vertices;
+                Vector3[] vertsNormal = meshes[i].normals;
                 for (int j = 0; j < triangles.Length / 3; j++)
                 {
                     DivideTriangle(
@@ -177,13 +175,15 @@ namespace DvD_Dev
             current.containsBlocked = current.blocked;
         }
 
-        public void DivideTriangle(Vector3d p1, Vector3d p2, Vector3d p3, bool markAsBlocked = false)
+        public void DivideTriangle(Vector3 p1, Vector3 p2, Vector3 p3, bool markAsBlocked = false)
         {
+            //System.Diagnostics.Debug.WriteLine("DivideTriangle " + p1.ToString() + " " + p2.ToString() + " " + p3.ToString());
             root.DivideTriangleUntilLevel(p1, p2, p3, maxLevel, markAsBlocked);
         }
 
         public bool LineOfSight(Vector3 p1, Vector3 p2, bool outsideIsBlocked = false, bool doublePrecision = false)
         {
+            if (p1.Z < 0 || p2.Z < 0) return false;
             Vector3 p1g = (p1 - corner) / cellSize;
             Vector3 p2g = (p2 - corner) / cellSize;
             if (doublePrecision)
@@ -200,7 +200,8 @@ namespace DvD_Dev
             {
                 //FloorToIntSnap(p1g[i], out p[0, i]);
                 //FloorToIntSnap(p2g[i], out p[1, i]);
-     
+                //System.Diagnostics.Debug.WriteLine("p1g " + p1g.ToString());
+                //System.Diagnostics.Debug.WriteLine("p1g get 0: " + p1g.Get(0) + " 1: " + p1g.Get(1) + " 2: " + p1g.Get(2));
                 p[0, i] =(int) MathF.Round(p1g.Get(i));
                 p[1, i] =(int) MathF.Round(p2g.Get(i));
                 d[i] = p[1, i] - p[0, i];
@@ -220,7 +221,7 @@ namespace DvD_Dev
             if (d[0] >= d[1] && d[0] >= d[2]) longAxis = 0;
             else if (d[1] >= d[2]) longAxis = 1;
             else longAxis = 2;
-            if (d[longAxis] == 0) return true;
+            if (d[longAxis] == 0) return true;  //Returns here
             int axis0 = (longAxis + 1) % 3;
             int axis1 = (longAxis + 2) % 3;
 
@@ -455,6 +456,17 @@ namespace DvD_Dev
             g.type = Graph.GraphType.CORNER;
             cornerGraph = g;
             cornerGraphDictionary = dict;
+
+            //for (int i = 0; i < 6000; i++)
+            //{
+            //    MapPage.ShowTriangle(g.nodes[i].center);
+            //    ///if (g.nodes[i].center.Z < 32) System.Diagnostics.Debug.WriteLine("Z < 32, z: " + g.nodes[i].center.Z + " index i: " + i);
+            //    foreach (Arc a in g.nodes[i].arcs)
+            //    {
+            //        MapPage.ShowPath(new List<Vector3> { a.to.center, a.from.center });
+            //    }
+            //}
+
             return g;
         }
 
@@ -648,6 +660,7 @@ namespace DvD_Dev
                     }
                 }
             }
+            else System.Diagnostics.Debug.WriteLine("found source node is null");
             return result;
         }
 
@@ -670,6 +683,41 @@ namespace DvD_Dev
         //{
         //    root.ClearDisplay();
         //}
+
+        public List<OctreeNode> GetAllNodes()
+        {
+            int printNodes = 100000000;
+            HashSet<OctreeNode> res = new HashSet<OctreeNode>();
+            Queue<OctreeNode> q = new Queue<OctreeNode>();
+            q.Enqueue(root);
+
+            while(q.Count > 0)
+            {
+                OctreeNode curr = q.Dequeue();
+                res.Add(curr);
+                if (printNodes >= 0)
+                {
+                    if (curr.blocked)
+                    {
+                        MapPage.ShowBlockedTriangle(curr.center);
+                        //System.Diagnostics.Debug.WriteLine("There is a blocked octree node at z: " + curr.center.Z);
+                        printNodes--;
+                        //if (curr.center.Z > 32) throw new Exception("THE OCCUPIED NODE HAS A HEIGHT GREATER THAN 32");
+                    }
+                    else
+                    {
+                        //MapPage.ShowTriangle(curr.center);
+                        // System.Diagnostics.Debug.WriteLine("This node is not blocked index: " +  printNodes);
+                    }
+                } //else if(curr.blocked) System.Diagnostics.Debug.WriteLine("There is a blocked octree node at z: " + curr.center.Z);
+
+                if (curr.children != null)
+                    foreach (OctreeNode child in curr.children) q.Enqueue(child);
+                //else System.Diagnostics.Debug.WriteLine("Octree node has no children");
+            }
+            //System.Diagnostics.Debug.WriteLine("Octree number of nodes: " + res.Count);
+            return res.ToList();
+        }
     }
     class OctreeNode
     {
@@ -764,39 +812,48 @@ namespace DvD_Dev
             return true;
         }
 
-        public bool IntersectTriangle(Vector3d p1, Vector3d p2, Vector3d p3, float tolerance = 0)
+        public bool IntersectTriangle(Vector3 p1, Vector3 p2, Vector3 p3, float tolerance = 0)
         {
-            Vector3 sCenter = center;
-            Vector3d c = new Vector3d(sCenter.X, sCenter.Y, sCenter.Z);
+            Vector3 c = center;
+            //System.Diagnostics.Debug.WriteLine("INTERSECTTRIANGLE'S CENTER: " + c.ToString());
             float r = size / 2 - tolerance;
+            //System.Diagnostics.Debug.WriteLine("radius r: " + r);
             p1 -= c;
             p2 -= c;
             p3 -= c;
             double xm, xp, ym, yp, zm, zp;
-            xm = Math.Min(p1.x, Math.Min(p2.x, p3.x));
-            xp = Math.Max(p1.x, Math.Max(p2.x, p3.x));
-            ym = Math.Min(p1.y, Math.Min(p2.y, p3.y));
-            yp = Math.Max(p1.y, Math.Max(p2.y, p3.y));
-            zm = Math.Min(p1.z, Math.Min(p2.z, p3.z));
-            zp = Math.Max(p1.z, Math.Max(p2.z, p3.z));
-            if (xm >= r || xp < -r || ym >= r || yp < -r || zm >= r || zp < -r) return false;
+            xm = Math.Min(p1.X, Math.Min(p2.X, p3.X));
+            xp = Math.Max(p1.X, Math.Max(p2.X, p3.X));
+            ym = Math.Min(p1.Y, Math.Min(p2.Y, p3.Y));
+            yp = Math.Max(p1.Y, Math.Max(p2.Y, p3.Y));
+            zm = Math.Min(p1.Z, Math.Min(p2.Z, p3.Z));
+            zp = Math.Max(p1.Z, Math.Max(p2.Z, p3.Z));
+            if (xm >= r || xp < -r || ym >= r || yp < -r || zm >= r || zp < -r)
+            {
+               // System.Diagnostics.Debug.WriteLine("The triangle points are outside of radius range");
+                return false;
+            }
 
-            Vector3d n = (p2 - p1).Cross(p3 - p1);
-            double d = Math.Abs(p1.Dot(n));
-            if (d > r * (Math.Abs(n.x) + Math.Abs(n.y) + Math.Abs(n.z))) return false;
+            //System.Diagnostics.Debug.WriteLine("Someone passed the radius restriction, xm: " + xm + " ym: " + ym + " zm: " + zm + " xp: " + xp + " yp: " + yp + " zp: " + zp);
+            Vector3 n = Vector3.Cross(p2 - p1, p3 - p1);
+            double d = Math.Abs(Vector3.Dot(p1, n));
+            if (d > r * (Math.Abs(n.X) + Math.Abs(n.Y) + Math.Abs(n.Z))) return false;
 
-            Vector3d[] p = { p1, p2, p3 };
-            Vector3d[] f = { p3 - p2, p1 - p3, p2 - p1 };
+            Vector3[] p = { p1, p2, p3 };
+            Vector3[] f = { p3 - p2, p1 - p3, p2 - p1 };
             for (int i = 0; i < 3; i++)
             {
                 for (int j = 0; j < 3; j++)
                 {
-                    Vector3d a = Vector3d.Zero;
-                    a[i] = 1;
-                    a = a.Cross(f[j]);
-                    double d1 = p[j].Dot(a);
-                    double d2 = p[(j + 1) % 3].Dot(a); 
-                    double rr = r * (Math.Abs(a[(i + 1) % 3]) + Math.Abs(a[(i + 2) % 3])); ;
+                    Vector3 a = Vector3.Zero;
+                    a.Set(i, 1);
+                    //System.Diagnostics.Debug.WriteLine("Vector a: " + a.ToString());
+                    a = Vector3.Cross(a, f[j]);
+                   //System.Diagnostics.Debug.WriteLine("Vector a after cross product: " + a.ToString());
+                   // System.Diagnostics.Debug.WriteLine("Check get is correct, 0: " + a.Get(0) + " 1: " + a.Get(1) + " 2: " + a.Get(2));
+                    double d1 = Vector3.Dot(p[j], a);
+                    double d2 = Vector3.Dot(p[(j + 1) % 3], a);
+                    double rr = r * ( Math.Abs(a.Get((i + 1) % 3)) + Math.Abs(a.Get((i + 2) % 3)) ); 
                     if (Math.Min(d1, d2) > rr || Math.Max(d1, d2) < -rr) return false;
                 }
             }
@@ -837,22 +894,36 @@ namespace DvD_Dev
             }
         }
 
-        public void DivideTriangleUntilLevel(Vector3d p1, Vector3d p2, Vector3d p3, int maxLevel, bool markAsBlocked = false)
+        public void DivideTriangleUntilLevel(Vector3 p1, Vector3 p2, Vector3 p3, int maxLevel, bool markAsBlocked = false)
         {
+           // System.Diagnostics.Debug.WriteLine("DivideTriangleUntilLevel is called with p1: " + p1.ToString() + " p2: " + p2.ToString() + " p3: " + p3.ToString());
             if (IntersectTriangle(p1, p2, p3))
             {
                 containsBlocked = containsBlocked || markAsBlocked;
                 if (level < maxLevel)
                 {
                     CreateChildren();
+                    //System.Diagnostics.Debug.Write("children = ");
+                    foreach (OctreeNode c in children)
+                    {
+                        //MapPage.ShowTriangle(c.center);
+                       // System.Diagnostics.Debug.Write(c.center + ", ");
+                    }
+                    //System.Diagnostics.Debug.Write("\n");
                     for (int xi = 0; xi < 2; xi++)
                         for (int yi = 0; yi < 2; yi++)
                             for (int zi = 0; zi < 2; zi++)
+                            {
+                                //System.Diagnostics.Debug.WriteLine("Parent's center: " + this.center 
+                                //    + " children's center: " + children[xi, yi, zi].center);
                                 children[xi, yi, zi].DivideTriangleUntilLevel(p1, p2, p3, maxLevel, markAsBlocked);
+                            }
                 }
                 else
                 {
+                  // System.Diagnostics.Debug.WriteLine("No more calling DividTriangleUntilLevel");
                     blocked = blocked || markAsBlocked;
+                    //System.Diagnostics.Debug.WriteLine(this.center.ToString() + "is blocked? " + blocked);
                 }
             }
         }

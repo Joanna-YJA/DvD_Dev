@@ -175,7 +175,7 @@ namespace DvD_Dev
             temp.Add(node);
             while (node.parent != null)
             {
-                //System.Diagnostics.Debug.WriteLine("For node " + node.center + " ,Adding node's parent " + node.parent.center + " to List<Node>");
+                System.Diagnostics.Debug.WriteLine("For node " + node.center + " ,Adding node's parent " + node.parent.center + " to List<Node>");
                 temp.Add(node.parent);
                 node = node.parent;
             }
@@ -218,19 +218,22 @@ namespace DvD_Dev
             if (type == GraphType.CENTER)
             {
                 sourceNeighbors = space.FindCorrespondingCenterGraphNode(source);
+               // System.Diagnostics.Debug.WriteLine("Because graph is center graph, Find Corresponding Center Graph Node...");
             }
             else if (type == GraphType.CORNER)
             {
                 sourceNeighbors = space.FindBoundingCornerGraphNodes(source);
+               // System.Diagnostics.Debug.WriteLine("Because graph is corner graph, Find Bounding Corner Graph Nodes...");
             }
             else if (type == GraphType.CROSSED)
             {
                 sourceNeighbors = space.FindBoundingCrossedGraphNodes(source);
+                //System.Diagnostics.Debug.WriteLine("Because graph is crossed graph, Find Bounding Crossed Graph Nodes...");
             }
-            //System.Diagnostics.Debug.Write("sourceNeighbors: [");
-            //foreach (Node sn in sourceNeighbors)
-            //    System.Diagnostics.Debug.Write(sn.center + ", ");
-            //System.Diagnostics.Debug.Write("]\n");
+            System.Diagnostics.Debug.Write("sourceNeighbors: [");
+            foreach (Node sn in sourceNeighbors)
+                System.Diagnostics.Debug.Write(sn.center + ", ");
+            System.Diagnostics.Debug.Write("]\n");
 
 
 
@@ -254,12 +257,12 @@ namespace DvD_Dev
                 }
 
                 //System.Diagnostics.Debug.WriteLine("type: " + type);
-                //System.Diagnostics.Debug.Write("destinationNeighbors: [");
-                //foreach (Node dn in destinationNeighbors)
-                //{
-                //    if (dn != null) System.Diagnostics.Debug.Write(dn.center + ", ");
-                //}
-                //System.Diagnostics.Debug.Write("]\n");
+                System.Diagnostics.Debug.Write("destinationNeighbors: [");
+                foreach (Node dn in destinationNeighbors)
+                {
+                    if (dn != null) System.Diagnostics.Debug.Write(dn.center + ", ");
+                }
+                System.Diagnostics.Debug.Write("]\n");
 
                 tempDestinationNodes.Add(AddTemporaryNode(destination, destinationNeighbors));
             }
@@ -271,6 +274,7 @@ namespace DvD_Dev
             List <List<Node>> result = FindPath(method, tempSourceNode, tempDestinationNodes, space, h);
             RemoveTemporaryNodes();
 
+           // System.Diagnostics.Debug.WriteLine("waypoints are " + result[0].Count);
             return result;
         }
 
@@ -346,7 +350,7 @@ namespace DvD_Dev
                             // ComputeCost
                             if (successor.g > current.g + a.distance)
                             {
-                                successor.parent = current;
+                                successor.parent = current; //<<Set parent
                                 successor.g = current.g + a.distance;
                                 successor.f = successor.g + successor.h;
                             } //
@@ -495,18 +499,19 @@ namespace DvD_Dev
 
         public List<List<Node>> LazyThetaStar(Node source, List<Node> destinations, Octree space, H h = null)
         {
-            Node testFocus = null;
-            foreach (Node n in this.nodes)
-            {
-                //if (n.center.Equals(new Vector3(-57.06298f, 10f, 142.9338f)))
-                if(n.index == -1)
-                {
-                    testFocus = n;
-                    //foreach (Arc a in n.arcs)
-                    //    System.Diagnostics.Debug.WriteLine(n.index + ")In Lazy Theta Star, Target node n is connected to " + a.to.center);
-                }
-            }
+            //Node testFocus = null;
+            //foreach (Node n in this.nodes)
+            //{
+            //    //if (n.center.Equals(new Vector3(-57.06298f, 10f, 142.9338f)))
+            //    if(n.index == -1)
+            //    {
+            //        testFocus = n;
+            //        //foreach (Arc a in n.arcs)
+            //        //    System.Diagnostics.Debug.WriteLine(n.index + ")In Lazy Theta Star, Target node n is connected to " + a.to.center);
+            //    }
+            //}
             //float t = Time.realtimeSinceStartup;
+
             int nodeCount = 0;
             int newNodeCount = 0;
 
@@ -521,6 +526,9 @@ namespace DvD_Dev
             IntervalHeap<NodeInfo> open = new IntervalHeap<NodeInfo>(new NodeFComparer());
             sourceInfo.open = true;
             sourceInfo.g = 0;
+
+            //test
+            //System.Diagnostics.Debug.WriteLine("destination.Counts = " + destinations.Count);
 
             for (int i = 0; i < destinations.Count; i++)
             {
@@ -562,8 +570,14 @@ namespace DvD_Dev
                 {
                     nodeCount++;
                     current = open.DeleteMin();
+                    //System.Diagnostics.Debug.WriteLine("current node: " + current.center + " #arcs: " + current.arcs.Count);
+                    //if (current.parent == null)
+                    //    System.Diagnostics.Debug.WriteLine("current has no parent");
+                    //else
+                    //    System.Diagnostics.Debug.WriteLine("current's parent " + current.parent.center);
+                    // System.Diagnostics.Debug.WriteLine("Getting current form open heap, center: " + current.center + " index: " + current.index);
                     current.open = false;
-                    current.closed = true;
+                    current.closed = true; //<<Closed set here
                     // SetVertex
                     if (current.parent != null && !space.LineOfSight(current.parent.center, current.center, false, type == GraphType.CENTER))
                     {
@@ -575,6 +589,11 @@ namespace DvD_Dev
                             float tempg;
                             if (infoTable.TryGetValue(a.to.index, out tempParent) && tempParent.closed)
                             {
+                                //test
+                                //Vector3 test = (current.center - tempParent.center);
+                                //System.Diagnostics.Debug.WriteLine("Length of vector: " + test.Length());
+                                //UnityEngine.Vector3 testU = new UnityEngine.Vector3(test.X, test.Y, test.Z);
+                                //System.Diagnostics.Debug.WriteLine("Magnitude of vector: " + testU.magnitude);
                                 tempg = tempParent.g + (current.center - tempParent.center).Length();
                                 if (tempg < realg)
                                 {
@@ -583,10 +602,21 @@ namespace DvD_Dev
                                 }
                             }
                         }
-                        current.parent = realParent;
+                        current.parent = realParent; //<<Parent set here
+                        //System.Diagnostics.Debug.WriteLine("0. Set parent " + current.parent.center + "=>" + current.center);
                         current.g = realg;
-                    } //
-                    if (current.index == destination.index) break;
+                    }
+                    //test
+                    else {
+                       // System.Diagnostics.Debug.WriteLine("Pass LOS check because, current.parent == null?" + current.parent == null);
+                       //if(current.parent != null)
+                       //     System.Diagnostics.Debug.WriteLine(" or there is LOS w current.parent and current? " + space.LineOfSight(current.parent.center, current.center, false, type == GraphType.CENTER));
+                      }
+                    if (current.index == destination.index)
+                    {
+                        //System.Diagnostics.Debug.WriteLine("current index = dest index, current: " + current.center + " index: " + current.index + " dest: " + destination.center + " index: " + destination.index);
+                        break;
+                    }
                     //System.Diagnostics.Debug.WriteLine("current.index " + current.index + " Arcs connnected to current node " + current.center);
                     //System.Diagnostics.Debug.WriteLine("testFocus == null? " + (testFocus == null) + " testFocus == current? " + (testFocus == current) + " testFocus.center " + testFocus.center);
                     //foreach (Arc ac in current.arcs)
@@ -615,11 +645,12 @@ namespace DvD_Dev
                             if (successor.g > gNew)
                             {
                                 //System.Diagnostics.Debug.WriteLine("successor.g > gNew for successor " + successor.center + " and parent " + parent.center);
-                                successor.parent = parent;
+                                successor.parent = parent; //<<Parent set here
+                               // System.Diagnostics.Debug.WriteLine("1. Set parent " + successor.parent.center + " => " +  successor.center);
                                 successor.g = gNew;
                                 successor.f = successor.g + successor.h;
                             } //
-                            if (successor.g < g_old)
+                            if (successor.g < g_old) //If the g value is updated 
                             {
                                 if (successor.open)
                                     open.Delete(successor.handle);
@@ -640,7 +671,8 @@ namespace DvD_Dev
                 {
                     while (check.parent.parent != null && space.LineOfSight(check.parent.parent.center, check.center, false, type == GraphType.CENTER))
                     {
-                        check.parent = check.parent.parent;
+                        check.parent = check.parent.parent; //<<Parent set here
+                        //System.Diagnostics.Debug.WriteLine("2. Set parent " + check.parent.center + "=>" + check.center);
                     }
                     check = check.parent;
                 }
@@ -648,16 +680,16 @@ namespace DvD_Dev
                 open.Add(ref current.handle, current);
             }
             //System.Diagnostics.Debug.WriteLine("time: " + (Time.realtimeSinceStartup - t) + " NodeCount: " + nodeCount + " NewNodeCount: " + newNodeCount);
-            //System.Diagnostics.Debug.WriteLine("Result of Lazy Theta Star: [");
-            //foreach (List<Node> lr in result)
-            //{
-            //    if (lr != null)
-            //        foreach (Node r in lr)
-            //        {
-            //            if (r != null) System.Diagnostics.Debug.WriteLine(r.center + ", ");
-            //        }
-            //}
-            //System.Diagnostics.Debug.WriteLine("]\n");
+            System.Diagnostics.Debug.WriteLine("Result of Lazy Theta Star: [");
+            foreach (List<Node> lr in result)
+            {
+                if (lr != null)
+                    foreach (Node r in lr)
+                    {
+                        if (r != null) System.Diagnostics.Debug.WriteLine(r.center + ", ");
+                    }
+            }
+            System.Diagnostics.Debug.WriteLine("]\n");
             return result;
         }
     }

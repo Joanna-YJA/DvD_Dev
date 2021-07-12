@@ -1,4 +1,5 @@
 ﻿using g3;
+using NetTopologySuite.Geometries;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -24,13 +25,13 @@ namespace DvD_Dev
 
         private World() { }
 
-        public World(DMesh3[] meshes, float size, Vector3 center, int maxLevel, float normalExtension, bool progressive = true, Graph.GraphType type = Graph.GraphType.CENTER)
+        public World(List<Mesh> meshes, float size, Vector3 center, int maxLevel, float normalExtension, bool progressive = true, Graph.GraphType type = Graph.GraphType.CENTER)
         {
-            space = progressive ? new ProgressiveOctree(size, center - Vector3.One * size / 2, maxLevel) : new Octree(size, center - Vector3.One * size / 2, maxLevel);
-                space.BuildFromMeshes(meshes, normalExtension);
-                spaceGraph =
-                    type == Graph.GraphType.CENTER ? space.ToCenterGraph() :
-                    type == Graph.GraphType.CORNER ? space.ToCornerGraph() : space.ToCrossedGraph();
+            space = progressive ? new ProgressiveOctree(size, center - Vector3.One * (size / 2), maxLevel) : new Octree(size, center - Vector3.One * size / 2, maxLevel);
+            space.BuildFromMeshes(meshes, normalExtension);
+            spaceGraph =
+                type == Graph.GraphType.CENTER ? space.ToCenterGraph() :
+                type == Graph.GraphType.CORNER ? space.ToCornerGraph() : space.ToCrossedGraph();
         }
 
         public World(Octree space, Graph.GraphType type = Graph.GraphType.CENTER)
