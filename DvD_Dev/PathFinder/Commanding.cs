@@ -1,14 +1,17 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using Esri.ArcGISRuntime.Geometry;
+using Esri.ArcGISRuntime.Mapping;
+using Esri.ArcGISRuntime.Symbology;
+using Esri.ArcGISRuntime.UI;
+using Esri.ArcGISRuntime.UI.Controls;
 using System;
+using System.Collections.Generic;
+using System.Drawing;
 using System.Numerics;
-using Esri.ArcGISRuntime.Geometry;
 
 namespace DvD_Dev
 {
     class Commanding
     {
-
         public List<SpaceUnit> activeUnits;
         public Octree space;
         public Graph spaceGraph;
@@ -17,7 +20,15 @@ namespace DvD_Dev
         [System.NonSerialized]
         public float ext;
 
-        public Commanding(World world)
+        static SimpleLineSymbol pathSymbol = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Black, 5.0);
+        static SimpleMarkerSymbol pathVertexSymbol = new SimpleMarkerSymbol()
+        {
+            Color = Color.Orange,
+            Size = 10,
+            Style = SimpleMarkerSymbolStyle.Circle
+        };
+
+        public Commanding(ref SceneView sceneView, World world)
         {
             activeUnits = new List<SpaceUnit>();
             this.space = world.space;
@@ -30,7 +41,7 @@ namespace DvD_Dev
             this.spaceGraph = spaceGraph;
         }
 
-        public void MoveOrder(Vector3 target, MapController mapController)
+        public void MoveOrder(Vector3 target, ref List<MapPoint> points)
         {
             List<Vector3> pathFindingDest = new List<Vector3>();
             foreach (SpaceUnit unit in activeUnits)
@@ -39,113 +50,37 @@ namespace DvD_Dev
             }
             if (pathFindingDest.Count > 0)
             {
-                ////System.Diagnostics.Debug.WriteLine("Finding path from " + target + " to " + pathFindingDest[0]);
                 List<List<Node>> allWayPoints = spaceGraph.FindPath(spaceGraph.LazyThetaStar, target, pathFindingDest, space);
-                //List<List<Vector3>> allWayPointsAfterLOSCheck = new List<List<Vector3>>();
-                ////System.Diagnostics.Debug.WriteLine("Printing List<List<Node>> allWayPoints, allWayPoints[0] is null? " + (allWayPoints[0] == null));
-                if (allWayPoints[0] != null)
-                {
-                    foreach (List<Node> waypointList in allWayPoints)
-                    {
-                        ////System.Diagnostics.Debug.WriteLine("List<Node>...");
-                        foreach (Node node in waypointList)
-                        {
-                            // convert the node to the proper real world scale location
-                            // since this calculated node center is in the 0.1 scale
-                            node.center *= 10;
-                            ////System.Diagnostics.Debug.WriteLine(node.center);
-                        }
-
-                        /* This is the attempt to calculate the new LOS-checked waypoints are start
-                         * 
-                        // Do the LOS from each node to the nextnext node
-                        List<Vector3> waypointListAfterLOSCheck = new List<Vector3>();
-                        if (waypointList.Count > 2)
-                        {
-                            //Vector3 currPos = activeUnits[0].gameObject.transform.position;
-                            Vector3 currPos = waypointList[0].center;
-                            waypointListAfterLOSCheck.Add(currPos);
-                            for (int i = 0; i < waypointList.Count - 2; i++)
-                            {
-                                float distFromCurrPos = 0;
-                                Vector3 next = waypointList[i + 1].center;
-                                Vector3 dirToNext = Vector3.Normalize(next - currPos);
-                                float distToNext = (next - currPos).Length();
-
-                                Vector3 nextnext = waypointList[i + 2].center;
-                                while (distFromCurrPos < distToNext)
-                                {
-                                    if (LineOfSightRaycast(currPos + distFromCurrPos * dirToNext, nextnext))
-                                    {
-                                        currPos = currPos + distFromCurrPos * dirToNext;
-                                        waypointListAfterLOSCheck.Add(currPos);
-                                        break;
-                                    }
-                                    distFromCurrPos += losCheckInterval;
-                                }
-                                waypointListAfterLOSCheck.Add(next);
-                                currPos = next;
-                            }
-                            // Add in position of the final two nodes
-                            waypointListAfterLOSCheck.Add(waypointList[waypointList.Count - 2].center);
-                            waypointListAfterLOSCheck.Add(waypointList[waypointList.Count - 1].center);
-                        }
-                        else
-                        {
-                            for (int i= 0; i < waypointList.Count; i++)
-                            {
-                                waypointListAfterLOSCheck.Add(waypointList[i].center);
-                            }
-                        }
-                        allWayPointsAfterLOSCheck.Add(waypointListAfterLOSCheck);
-                        */
-                    }
-
-                }
-                List<MapPoint> linePoints = new List<MapPoint>();
-                foreach (List<Node> waypointList in allWayPoints)
-                    foreach (Node node in waypointList)
-                    {
-                        linePoints.Add(new MapPoint(node.center.X, node.center.Y, node.center.Z, PathFinder.spatialRef));
-                        //System.Diagnostics.Debug.WriteLine("Path Waypoint " + node.center.ToString());
-                    }
-                MapPage.ShowPath(linePoints);
-
-                for (int i = 0; i < activeUnits.Count; i++)
-                {
-                    ////System.Diagnostics.Debug.WriteLine("Calling SpaceUnit.MoveOrder");
-                    activeUnits[i].MoveOrder(U.InverseList(allWayPoints[i]), PathFinder.defaultWaypointSize * MathF.Pow(activeUnits.Count, 0.333f), mapController);
-                    //activeUnits[i].MoveOrder(U.InverseList(allWayPointsAfterLOSCheck[i]), Main.defaultWaypointSize * MathF.Pow(activeUnits.Count, 0.333f));
-                }
+                AddMapPoints(ref points, allWayPoints[0]);
             }
         }
 
-        /*
-         * For the LOS check attempt above
-        // Check LOS (if does not collide with collider) from p1 to p2
-        // Return true if has LOS
-        public bool LineOfSightRaycast(Vector3 p1, Vector3 p2)
+        public void AddMapPoints(ref List<MapPoint> points, List<Node> sectionPoints)
         {
-            Vector3 dir = p2 - p1;
-            Ray ray = new Ray(p1, dir);
-            // raycast first then spherecast
-            // because SphereCast will not detect colliders for which the sphere overlaps the collider.
-            // from Docs
-            if (Physics.Raycast(ray, dir.Length()))
+            //if(points.Count > 0) System.Diagnostics.Debug.WriteLine("the pos of drone: " + points[points.Count - 1].ToString());
+            System.Diagnostics.Debug.Write("Move to coords is called, path points: ");
+            for(int i = sectionPoints.Count - 1; i >= 0; i--)
             {
-                return false;
+                Vector3 c = sectionPoints[i].center * 10;
+                MapPoint p = new MapPoint(c.X, c.Y, c.Z, PathFinder.spatialRef);
+                points.Add(p);
+                // System.Diagnostics.Debug.WriteLine("each of the map point p in move order: " + p);
+                System.Diagnostics.Debug.Write(p.ToString() + " ");
             }
-            else
-            {
-                if (Physics.SphereCast(ray, ext, dir.Length()))
-                {
-                    return false;
-                }
-                else { return true; }
-
-            }
-
+            System.Diagnostics.Debug.Write("\n");
         }
-        */
+
+        public void ShowPath(ref List<MapPoint> points, GraphicsOverlay overlay)
+        {
+            for (int i = 0; i < points.Count - 1; i++)
+            {
+                MapPoint p = points[i];
+                Graphic pointSym = new Graphic(p, pathVertexSymbol);
+                overlay.Graphics.Add(pointSym);
+            }
+            Polyline line = new Polyline(points);
+            Graphic graphicWithSymbol = new Graphic(line, pathSymbol);
+            overlay.Graphics.Add(graphicWithSymbol);
+        }
     }
 }

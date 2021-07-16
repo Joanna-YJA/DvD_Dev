@@ -1,7 +1,12 @@
 ﻿using DJI.WindowsSDK;
+using Esri.ArcGISRuntime.Geometry;
+using Esri.ArcGISRuntime.Symbology;
+using Esri.ArcGISRuntime.UI;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.Devices.Geolocation;
@@ -17,216 +22,175 @@ namespace DvD_Dev
 
         public double focalLenMm = 50;
 
-        private static double yawRad = Math.Min(DegreesToRadians(45), DegreesToRadians(80));
-        private static double pitchRad = Math.Min(DegreesToRadians(0), DegreesToRadians(80));
+        private static double yawRad = 0;
+        private static double pitchRad = 0;
         private static double HFVRad;
         private static double VFVRad;
 
-        private double fpBase;
-        private double fpHeight;
-        private double[] fpDimensions;
+        private float halfHeight;
+        private float halfBase;
 
-        private double halfBaseLon;
-        private double halfBaseLat;
+        private static SimpleLineSymbol rectOutline = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Green, 1.0);
+        private static SimpleFillSymbol seperateRectSymbol = new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, Color.Green, rectOutline);
 
-        private double halfHeightLat;
-        private double halfHeightLon;
+        private static SimpleLineSymbol pathOutline = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.LightGreen, 1.0);
+        private static SimpleFillSymbol pathSymbol = new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, Color.LightGreen, pathOutline);
 
-        private double FindHFV()
+
+        public FootprintCalculator()
+        {
+            yawRad = LimitToRange(yawRad, -80, 80);
+            pitchRad = LimitToRange(pitchRad, -80, 80);
+
+            HFVRad = FindHFV();
+            VFVRad = FindVFV();
+
+            FindFootprintDimensions();
+        }
+
+        private static double LimitToRange(double value, double incMin, double incMax)
+        {
+            if (value < incMin) return incMin;
+            if (value > incMax) return incMax;
+            return value;
+        }
+
+        private double FindHFV() //Horizontal Field-Of-View
         {
             double angle = xsensorMm / (2 * focalLenMm);
             return 2 * Math.Atan(angle);
         }
 
-        private double FindVFV()
+        private double FindVFV() //Vertical Field-Of-View
         {
             double angle = ysensorMm / (2 * focalLenMm);
             return 2 * Math.Atan(angle);
         }
 
-        public FootprintCalculator() {
-            HFVRad = FindHFV();
-            VFVRad = FindVFV();
-        }
-
-        public FootprintCalculator(double altitudeM, double focalLenMm, double xsensorMMm, double ysensorMm)
-        {
-            altitudeM = altitudeM;
-            focalLenMm = focalLenMm;
-            xsensorMm = xsensorMm;
-            ysensorMm = ysensorMm;
-            HFVRad = FindHFV();
-            VFVRad = FindVFV();
-        }
-         
-        public FootprintCalculator(double altitudeM, double HFVDeg, double VFVDeg)
-        {
-            altitudeM = altitudeM;
-            HFVRad = DegreesToRadians(HFVDeg);
-            VFVRad = DegreesToRadians(VFVDeg);
-        }
-
-        public void FindFootprintDimensions(BasicGeoposition initCoord)
+        public void FindFootprintDimensions()
         {
             double angleR = yawRad + 0.5 * HFVRad;
-            double angleL = yawRad - 0.5 * VFVRad;
-            fpBase = altitudeM * (Math.Tan(angleR) - Math.Tan(angleL));
-            fpBase = fpBase / 1000 * 2;
+            double angleL = yawRad - 0.5 * HFVRad;
+            float fpBase = (float)( altitudeM * (Math.Tan(angleR) - Math.Tan(angleL)) );
+            halfBase = fpBase / 2;
 
             double angleU = pitchRad + 0.5 * VFVRad;
             double angleD = pitchRad - 0.5 * VFVRad;
-            fpHeight = altitudeM * (Math.Tan(angleU) - Math.Tan(angleD));
-            fpHeight = fpHeight / 1000 * 2;
-
-            //System.Diagnostics.Debug.WriteLine("fpBase: " + fpBase + " fpHeight: " + fpHeight);
-
-            ConvertLatLonDimensions(initCoord);
+            float fpHeight = (float)(altitudeM * (Math.Tan(angleU) - Math.Tan(angleD)));
+            halfHeight = fpHeight / 2;
         }
 
-        public void ConvertLatLonDimensions(BasicGeoposition initCoord)
+        public List<MapPoint> FindFootprintInnerSide(ref List<MapPoint> points)
         {
-            Waypoint init = new Waypoint
-            {
-                location = new LocationCoordinate2D { latitude = 0, longitude = 0 }
-            };
-            Waypoint midTop = FindPointAtDistanceFrom(initCoord, 0, fpHeight/2);
-            halfHeightLat = midTop.location.latitude - initCoord.Latitude;
+            List<MapPoint> OneSideList = new List<MapPoint>();
 
-            Waypoint midHorizRight = FindPointAtDistanceFrom(initCoord, 90, fpHeight / 2);
-            halfHeightLon = midHorizRight.location.longitude - initCoord.Longitude;
-
-            Waypoint midRight = FindPointAtDistanceFrom(initCoord, 90, fpBase/2);
-            halfBaseLon = midRight.location.longitude - initCoord.Longitude;
-
-            Waypoint midHorizTop = FindPointAtDistanceFrom(initCoord, 0, fpBase / 2);
-            halfBaseLat = midHorizTop.location.latitude - initCoord.Latitude;
-        } 
-     
-        private static void PrintArr(double[] arr)
-        {
-            //System.Diagnostics.Debug.WriteLine("Printing array... ");
-            //foreach (double val in arr)
-                //System.Diagnostics.Debug.WriteLine(val + " ");
-        }
-
-        public List<BasicGeoposition> FindFootprintInnerSide(List<BasicGeoposition> coordList)
-        {
-            List<BasicGeoposition> OneSideList = new List<BasicGeoposition>();
-
-            BasicGeoposition curr, innerSide;
-             
-            curr = coordList[0];
-            innerSide = new BasicGeoposition { Latitude = curr.Latitude - halfHeightLat, Longitude = curr.Longitude + halfBaseLon};
+            MapPoint curr = points[0];
+            MapPoint innerSide = new MapPoint(curr.X - halfBase, curr.Y - halfHeight, 0, PathFinder.spatialRef);
             OneSideList.Add(innerSide);
 
-            int latSign = -1, lonSign = 1;
-            Boolean nextToChangeLat = false;
-            foreach(BasicGeoposition coord in coordList.GetRange(1, coordList.Count - 1))
+            int signY = -1, signX = 1;
+            bool nextToChangeY = false;
+            foreach (MapPoint p in points.GetRange(1, points.Count - 1))
             {
-                innerSide = new BasicGeoposition { Latitude = coord.Latitude + (latSign * halfBaseLat), Longitude = coord.Longitude + (lonSign * halfBaseLon)};
+                innerSide = new MapPoint(p.X + (signX * halfBase), p.Y + (signY * halfBase), p.Z, PathFinder.spatialRef); //TODO
                 OneSideList.Add(innerSide);
 
-                if (nextToChangeLat)latSign *= -1;
-                else lonSign *= -1;
-                nextToChangeLat = !nextToChangeLat;
+                if (nextToChangeY) signY *= -1;
+                else signX *= -1;
+                nextToChangeY = !nextToChangeY;
             }
 
             //In the inner side of the coverage area, the last point is special case
-            curr = OneSideList.Last();
-            curr.Longitude -= halfBaseLon * 2;
-            OneSideList.Add(curr);
+            MapPoint last = OneSideList.Last();
+            last = new MapPoint(last.X -  halfBase * 2, last.Y, last.Z, last.SpatialReference);
+            OneSideList.Add(last);
 
             return OneSideList;
         }
 
-        public Stack<BasicGeoposition> FindFootprintOuterSide(List<BasicGeoposition> coordList)
+        public Stack<MapPoint> FindFootprintOuterSide(ref List<MapPoint> points)
         {
-            Stack<BasicGeoposition> OtherSideStack = new Stack<BasicGeoposition>();
+            Stack<MapPoint> OtherSideStack = new Stack<MapPoint>();
 
-            BasicGeoposition curr, outerSide;
-            int latSign = 1, lonSign = -1;
-            Boolean nextToChangeLat = false;
+            int signY = 1, signX = -1;
+            bool nextToChangeY = false;
 
-            curr = coordList[0];
-            outerSide = new BasicGeoposition { Latitude = curr.Latitude - halfHeightLat, Longitude = curr.Longitude - halfBaseLon };
+            MapPoint curr = points[0];
+            MapPoint outerSide = new MapPoint(curr.X - halfBase, curr.Y - halfHeight, curr.Z, PathFinder.spatialRef); //Todo
             OtherSideStack.Push(outerSide);
 
-            foreach (BasicGeoposition coord in coordList.GetRange(1, coordList.Count - 1))
+            foreach (MapPoint p in points.GetRange(1, points.Count - 1))
             {
-                outerSide = new BasicGeoposition { Latitude = coord.Latitude + (latSign * halfBaseLat), Longitude = coord.Longitude + (lonSign * halfBaseLon) };
+                outerSide = new MapPoint(p.X + (signX * halfBase), p.Y + (signY * halfBase), p.Z, PathFinder.spatialRef); //TODO change coverage height
                 OtherSideStack.Push(outerSide);
 
-                if (nextToChangeLat) latSign *= -1;
-                else lonSign *= -1;
-                nextToChangeLat = !nextToChangeLat;
+                if (nextToChangeY) signY *= -1;
+                else signX *= -1;
+                nextToChangeY = !nextToChangeY;
             }
 
-            // DrawFigure(new List<BasicGeoposition>(OtherSideStack), Color.FromArgb(255, 0, 0, 255));
+            // DrawFigure(new List<Vector3>(OtherSideStack), Color.FromArgb(255, 0, 0, 255));
             return OtherSideStack;
         }
 
-        public List<BasicGeoposition> FindFootprintCoverage(List<BasicGeoposition> coordList)
+        public void ShowFootprintCoverage(ref List<MapPoint> points, GraphicsOverlay overlay)
         {
-            List<BasicGeoposition> OneSideList = FindFootprintInnerSide(coordList); //new List<BasicGeoposition>();  
-            Stack<BasicGeoposition> OtherSideStack = FindFootprintOuterSide(coordList);  //new Stack<BasicGeoposition>(); 
+            List<MapPoint> OneSideList = FindFootprintInnerSide(ref points); //new List<Vector3>();  
+            Stack<MapPoint> OtherSideStack = FindFootprintOuterSide(ref points);  //new Stack<Vector3>(); 
 
             // OneSideList.Concat(OtherSideStack);
             while (OtherSideStack.Count > 0)
                 OneSideList.Add(OtherSideStack.Pop());
 
-          OneSideList.Add(OneSideList.First()); //Add back the first point to form a complete polygon
-            return OneSideList;
+            OneSideList.Add(OneSideList.First()); //Add back the first point to form a complete polygon
+
+            Polygon coverage = new Polygon(OneSideList);
+            Graphic coverageGraphic = new Graphic(coverage, pathSymbol);
+            overlay.Graphics.Add(coverageGraphic);
         }
 
 
-        public List<List<BasicGeoposition>> FindSeperateFootprint(List<BasicGeoposition> coordList)
+        public void ShowSeperateFootprint(ref List<MapPoint> points, GraphicsOverlay overlay)
         {
-            List<List<BasicGeoposition>> rectFootprints = new List<List<BasicGeoposition>>();
             Boolean isOrigOrient = true;
-            double latVal, lonVal;
+            double yVal, xVal;
 
-            foreach (BasicGeoposition coord in coordList)
+            foreach (MapPoint p in points)
             {
                 if (isOrigOrient)
                 {
-                    latVal = halfHeightLat;
-                    lonVal = halfBaseLon;
-                } else
-                {
-                    latVal = halfBaseLat;
-                    lonVal = halfHeightLon;
+                    yVal = halfHeight;
+                    xVal = halfBase;
                 }
-                List<BasicGeoposition> fourPoints = new List<BasicGeoposition>();
-                fourPoints.Add(new BasicGeoposition { Latitude = coord.Latitude -latVal, Longitude = coord.Longitude - lonVal});
-                fourPoints.Add(new BasicGeoposition { Latitude = coord.Latitude - latVal, Longitude = coord.Longitude + lonVal });
-                fourPoints.Add(new BasicGeoposition { Latitude = coord.Latitude + latVal, Longitude = coord.Longitude + lonVal });
-                fourPoints.Add(new BasicGeoposition { Latitude = coord.Latitude + latVal, Longitude = coord.Longitude - lonVal});
+                else
+                {
+                    yVal = halfBase;
+                    xVal = halfHeight;
+                }
+                List<MapPoint> fourPoints = new List<MapPoint>();
+                fourPoints.Add(new MapPoint(p.X - xVal, p.Y - yVal, p.Z, PathFinder.spatialRef)); //TODO footprint height change to z = 0
+                fourPoints.Add(new MapPoint(p.X + xVal, p.Y - yVal, p.Z, PathFinder.spatialRef));
+                fourPoints.Add(new MapPoint(p.X + xVal, p.Y + yVal, p.Z, PathFinder.spatialRef));
+                fourPoints.Add(new MapPoint(p.X - xVal, p.Y + yVal, p.Z, PathFinder.spatialRef));
                 fourPoints.Add(fourPoints.First()); //Add back the first point to form a complete polygon
 
-                rectFootprints.Add(fourPoints);
+                Polygon rect = new Polygon(fourPoints);
+                Graphic rectGraphic = new Graphic(rect, seperateRectSymbol);
+                overlay.Graphics.Add(rectGraphic);
                 isOrigOrient = !isOrigOrient;
             }
-            return rectFootprints;
         }
 
-        public double getHalfBaseLon()
+        public float getHalfBase()
         {
-            return halfBaseLon; 
+            return halfBase;
         }
 
-        public double getHalfHeightLon()
+        public float getHalfHeight()
         {
-            return halfHeightLon; 
+            return halfHeight;
         }
 
-        public double getHalfBaseLat()
-        {
-            return halfBaseLat; 
-        }
 
-        public double getHalfHeightLat()
-        {
-            return halfHeightLat; 
-        }
     }
 }

@@ -21,6 +21,11 @@ namespace DvD_Dev
 {
     class Mesh
     {
+        static SimpleLineSymbol normalLineSymbol = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Red, 1.0);
+        static SimpleLineSymbol lineSymbol = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.DarkGreen, 1.0);
+        static SimpleFillSymbol fillSymbol = new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, Color.DarkOrchid, lineSymbol);
+        static TextSymbol textSymbol = new TextSymbol("", Color.Red, 20, HorizontalAlignment.Center, VerticalAlignment.Middle);
+
         SpatialReference spatialRef;
 
         public Vector3[] vertices;
@@ -149,17 +154,8 @@ namespace DvD_Dev
             this.CalculateNormals();
         }
 
-        public void DisplayMeshGraphic(SceneView sceneView)
-        {
-            GraphicsOverlay overlay = new GraphicsOverlay();
-            overlay.SceneProperties.SurfacePlacement = SurfacePlacement.Absolute;
-            sceneView.GraphicsOverlays.Add(overlay);
-
-            SimpleLineSymbol lineSymbol = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.DarkGreen, 1.0);
-            SimpleFillSymbol fillSymbol = new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, Color.DarkOrchid, lineSymbol);
-            SimpleLineSymbol normalLineSymbol = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Red, 1.0);
-            int numTri = triangles.Length / 3;
-            TextSymbol textSymbol = new TextSymbol(numTri.ToString(), Color.Red, 20, HorizontalAlignment.Center, VerticalAlignment.Middle);
+        public void DisplayMesh(ref GraphicsOverlay overlay)
+        { 
             
             for (int i = 0; i < triangles.Length; i += 3)
             {
@@ -168,21 +164,8 @@ namespace DvD_Dev
                 for (int j = i; j <= i + 2; j++)
                 {
                     Vector3 v = vertices[triangles[j]];
-                    //System.Diagnostics.Debug.Write("Vertice " + v.ToString());
                     MapPoint p = new MapPoint(v.X * 10, v.Y * 10, v.Z * 10, spatialRef);
                     points.Add(p);
-
-                    Vector3 n = normals[triangles[j]];
-                   // System.Diagnostics.Debug.Write(" At Pos " + triangles[j] + " Normal " + n.ToString() + "\n");
-                    n = v + n;
-                    List<MapPoint> normalLine = new List<MapPoint>();
-                    normalLine.Add(new MapPoint(p.X, p.Y, p.Z, spatialRef));
-                    normalLine.Add(new MapPoint(n.X * 10, n.Y * 10, n.Z * 10, spatialRef));
-                    Polyline line = new Polyline(normalLine);
-                    Graphic lineGraphic = new Graphic(line, normalLineSymbol);
-                    overlay.Graphics.Add(lineGraphic);
-                    //System.Diagnostics.Debug.WriteLine("Length of normal: " + GeometryEngine.LengthGeodetic(line, LinearUnits.Meters, GeodeticCurveType.Geodesic)
-                    //                                   + " normal from: " + normalLine[0].ToString() + " to: " + normalLine[1].ToString());
 
                     zvalues[j - i] = v.Z;
                 }
@@ -200,8 +183,7 @@ namespace DvD_Dev
                     Polyline line = new Polyline(points);
                     graphic = new Graphic(line, fillSymbol);
                 }
-                overlay.Graphics.Add(graphic);
-                // points.Add(new MapPoint(points[0].X, points[0].Y, points[0].Z, spatialRef));           
+                overlay.Graphics.Add(graphic);       
             }
 
             Graphic text = new Graphic();
@@ -209,6 +191,23 @@ namespace DvD_Dev
             text.Geometry = new MapPoint(vertices[0].X * 10, vertices[0].Y * 10, 200, spatialRef);
             //overlay.Graphics.Add(text);
 ;
+        }
+
+        public void DisplayMeshNormals(ref GraphicsOverlay overlay)
+        {
+            for (int i = 0; i < normals.Length; i ++)
+            {           
+                Vector3 v = vertices[i];
+ 
+                Vector3 n = normals[i];
+                n = v + n;
+                List<MapPoint> normalLine = new List<MapPoint>();
+                normalLine.Add(new MapPoint(v.X * 10, v.Y * 10, v.Z * 10, spatialRef));
+                normalLine.Add(new MapPoint(n.X * 10, n.Y * 10, n.Z * 10, spatialRef));
+                Polyline line = new Polyline(normalLine);
+                Graphic lineGraphic = new Graphic(line, normalLineSymbol);
+                overlay.Graphics.Add(lineGraphic);            
+            }
         }
 
     }

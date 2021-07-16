@@ -1,12 +1,13 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using Esri.ArcGISRuntime.Geometry;
+using Esri.ArcGISRuntime.Mapping;
+using Esri.ArcGISRuntime.Symbology;
+using Esri.ArcGISRuntime.UI;
+using Esri.ArcGISRuntime.UI.Controls;
 using System;
-using System.Numerics;
+using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
-using System.Reflection;
-using g3;
-using NetTopologySuite.Geometries;
-using NetTopologySuite.Mathematics;
+using System.Numerics;
 
 namespace DvD_Dev
 {
@@ -24,6 +25,13 @@ namespace DvD_Dev
         public static int[,] dir = { { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 0, 0, 1 }, { 0, 0, -1 } };
         public static int[,] cornerDir = { { 0, 0, 0 }, { 1, 0, 0 }, { 1, 1, 0 }, { 0, 1, 0 }, { 0, 0, 1 }, { 1, 0, 1 }, { 1, 1, 1 }, { 0, 1, 1 } };
         public static int[,] edgeDir = { { 0, 1, 1 }, { 0, 1, -1 }, { 0, -1, 1 }, { 0, -1, -1 }, { 1, 0, 1 }, { -1, 0, 1 }, { 1, 0, -1 }, { -1, 0, -1 }, { 1, 1, 0 }, { 1, -1, 0 }, { -1, 1, 0 }, { -1, -1, 0 } };
+
+        static SimpleMarkerSymbol blockedNodeSymbol = new SimpleMarkerSymbol()
+        {
+            Color = Color.Red,
+            Size = 10,
+            Style = SimpleMarkerSymbolStyle.Triangle
+        };
 
         private Octree() { }
         public Octree(float _size, Vector3 _corner, int _maxLevel)
@@ -50,41 +58,6 @@ namespace DvD_Dev
                 }
             }
         }
-        //public void BuildFromGameObject(GameObject gameObject, float normalExpansion = 0, bool recursive = true)
-        //{
-        //    if (gameObject.GetComponent<MeshFilter>() != null)
-        //    {
-        //        Mesh mesh = UnityEngine.Object.Instantiate(gameObject.GetComponent<MeshFilter>().mesh);
-        //        if (mesh != null)
-        //        {
-        //            MeshFactory.MergeOverlappingPoints(mesh);
-        //            mesh.RecalculateNormals();
-
-        //            int[] triangles = mesh.triangles;
-        //            Vector3[] vertsOld = mesh.vertices;
-        //            Vector3[] vertsNormal = mesh.normals;
-        //            Vector3[] verts = new Vector3[vertsOld.Length];
-        //            for (int j = 0; j < verts.Length; j++)
-        //            {
-        //                verts[j] = gameObject.transform.TransformPoint(vertsOld[j]) + gameObject.transform.TransformDirection(vertsNormal[j]) * normalExpansion;
-        //            }
-        //            for (int j = 0; j < triangles.Length / 3; j++)
-        //            {
-        //                DivideTriangle(verts[triangles[3 * j]], verts[triangles[3 * j + 1]], verts[triangles[3 * j + 2]], true);
-        //            }
-        //        }
-        //    }
-        //    if (recursive)
-        //    {
-        //        for (int i = 0; i < gameObject.transform.childCount; i++)
-        //        {
-        //            if (gameObject.transform.GetChild(i).gameObject.activeInHierarchy)
-        //            {
-        //                BuildFromGameObject(gameObject.transform.GetChild(i).gameObject, normalExpansion);
-        //            }
-        //        }
-        //    }
-        //}
 
         public int[] PositionToIndex(Vector3 p)
         {
@@ -109,6 +82,7 @@ namespace DvD_Dev
             int zi = gridIndex[2];
             int t = 1 << level;
             if (xi >= t || xi < 0 || yi >= t || yi < 0 || zi >= t || zi < 0) return null;
+
             OctreeNode current = root;
             for (int l = 0; l < level; l++)
             {
@@ -177,7 +151,6 @@ namespace DvD_Dev
 
         public void DivideTriangle(Vector3 p1, Vector3 p2, Vector3 p3, bool markAsBlocked = false)
         {
-            //System.Diagnostics.Debug.WriteLine("DivideTriangle " + p1.ToString() + " " + p2.ToString() + " " + p3.ToString());
             root.DivideTriangleUntilLevel(p1, p2, p3, maxLevel, markAsBlocked);
         }
 
@@ -198,12 +171,8 @@ namespace DvD_Dev
 
             for (int i = 0; i < 3; i++)
             {
-                //FloorToIntSnap(p1g[i], out p[0, i]);
-                //FloorToIntSnap(p2g[i], out p[1, i]);
-                //System.Diagnostics.Debug.WriteLine("p1g " + p1g.ToString());
-                //System.Diagnostics.Debug.WriteLine("p1g get 0: " + p1g.Get(0) + " 1: " + p1g.Get(1) + " 2: " + p1g.Get(2));
-                p[0, i] =(int) MathF.Round(p1g.Get(i));
-                p[1, i] =(int) MathF.Round(p2g.Get(i));
+                p[0, i] = (int)MathF.Round(p1g.Get(i));
+                p[1, i] = (int)MathF.Round(p2g.Get(i));
                 d[i] = p[1, i] - p[0, i];
                 if (d[i] < 0)
                 {
@@ -334,7 +303,7 @@ namespace DvD_Dev
 
         private bool FloorToIntSnap(float n, out int i, float epsilon = 0.001f)
         {
-            i = (int) MathF.Floor(n + epsilon);
+            i = (int)MathF.Floor(n + epsilon);
             return MathF.Abs(n - i) <= epsilon;
         }
 
@@ -456,16 +425,6 @@ namespace DvD_Dev
             g.type = Graph.GraphType.CORNER;
             cornerGraph = g;
             cornerGraphDictionary = dict;
-
-            //for (int i = 0; i < 6000; i++)
-            //{
-            //    MapPage.ShowTriangle(g.nodes[i].center);
-            //    ///if (g.nodes[i].center.Z < 32) System.Diagnostics.Debug.WriteLine("Z < 32, z: " + g.nodes[i].center.Z + " index i: " + i);
-            //    foreach (Arc a in g.nodes[i].arcs)
-            //    {
-            //        MapPage.ShowPath(new List<Vector3> { a.to.center, a.from.center });
-            //    }
-            //}
 
             return g;
         }
@@ -654,13 +613,9 @@ namespace DvD_Dev
                         cornerIndex[j] = (node.index[j] + cornerDir[i, j]) << (maxLevel - node.level);
                     }
                     result.Add(GetNodeFromDict(cornerIndex, cornerGraphDictionary));
-                    if (GetNodeFromDict(cornerIndex, cornerGraphDictionary) == null)
-                    {
-                        //Debug.Log(position + " " + cornerIndex[0] + " " + cornerIndex[1] + " " + cornerIndex[2]);
-                    }
                 }
             }
-            else System.Diagnostics.Debug.WriteLine("found source node is null");
+            else throw new Exception("The source node is null.");
             return result;
         }
 
@@ -675,49 +630,33 @@ namespace DvD_Dev
             return result;
         }
 
-        //public void DisplayVoxels(int maxLevel = -1, bool blockedOnly = true)
-        //{
-        //    root.DisplayVoxels(maxLevel, blockedOnly);
-        //}
-        //public void ClearDisplay()
-        //{
-        //    root.ClearDisplay();
-        //}
-
-        public List<OctreeNode> GetAllNodes()
+        public List<OctreeNode> DisplayOctreeBlockedNodes(ref GraphicsOverlay overlay)
         {
             int printNodes = 100000000;
             HashSet<OctreeNode> res = new HashSet<OctreeNode>();
             Queue<OctreeNode> q = new Queue<OctreeNode>();
             q.Enqueue(root);
 
-            while(q.Count > 0)
+            while (q.Count > 0)
             {
                 OctreeNode curr = q.Dequeue();
                 res.Add(curr);
-                if (printNodes >= 0)
+                if (printNodes >= 0 && curr.blocked)
                 {
-                    if (curr.blocked)
-                    {
-                        MapPage.ShowBlockedTriangle(curr.center);
-                        //System.Diagnostics.Debug.WriteLine("There is a blocked octree node at z: " + curr.center.Z);
-                        printNodes--;
-                        //if (curr.center.Z > 32) throw new Exception("THE OCCUPIED NODE HAS A HEIGHT GREATER THAN 32");
-                    }
-                    else
-                    {
-                        //MapPage.ShowTriangle(curr.center);
-                        // System.Diagnostics.Debug.WriteLine("This node is not blocked index: " +  printNodes);
-                    }
-                } //else if(curr.blocked) System.Diagnostics.Debug.WriteLine("There is a blocked octree node at z: " + curr.center.Z);
+                    Vector3 center = curr.center;
+                    MapPoint point = new MapPoint(center.X * 10, center.Y * 10, center.Z * 10, PathFinder.spatialRef);
+                    Graphic graphicWithSymbol = new Graphic(point, blockedNodeSymbol);
+                    overlay.Graphics.Add(graphicWithSymbol);
+
+                    printNodes--;
+                }
 
                 if (curr.children != null)
                     foreach (OctreeNode child in curr.children) q.Enqueue(child);
-                //else System.Diagnostics.Debug.WriteLine("Octree node has no children");
             }
-            //System.Diagnostics.Debug.WriteLine("Octree number of nodes: " + res.Count);
             return res.ToList();
         }
+
     }
     class OctreeNode
     {
@@ -784,10 +723,7 @@ namespace DvD_Dev
             float r = size / 2 - tolerance;
             p1 -= c;
             p2 -= c;
-            /*if (level == 1) {
-                Debug.Log(p1 + " " + p2 + " " + r);
-                throw new System.Exception();
-            }*/
+     
             float xm, xp, ym, yp, zm, zp;
             xm = MathF.Min(p1.X, p2.X);
             xp = MathF.Max(p1.X, p2.X);
@@ -800,7 +736,6 @@ namespace DvD_Dev
             for (int i = 0; i < 3; i++)
             {
                 Vector3 a = Vector3.Zero;
-                //FloorToIntSnap(p2g[i], out p[1, i]);
                 a.Set(i, 1);
                 a = Vector3.Cross(a, p2 - p1);
                 float d = MathF.Abs(Vector3.Dot(p1, a));
@@ -808,7 +743,6 @@ namespace DvD_Dev
                 if (d > rr) return false;
             }
 
-            //if (level >= 1) throw new System.Exception();
             return true;
         }
 
@@ -830,11 +764,9 @@ namespace DvD_Dev
             zp = Math.Max(p1.Z, Math.Max(p2.Z, p3.Z));
             if (xm >= r || xp < -r || ym >= r || yp < -r || zm >= r || zp < -r)
             {
-               // System.Diagnostics.Debug.WriteLine("The triangle points are outside of radius range");
                 return false;
             }
 
-            //System.Diagnostics.Debug.WriteLine("Someone passed the radius restriction, xm: " + xm + " ym: " + ym + " zm: " + zm + " xp: " + xp + " yp: " + yp + " zp: " + zp);
             Vector3 n = Vector3.Cross(p2 - p1, p3 - p1);
             double d = Math.Abs(Vector3.Dot(p1, n));
             if (d > r * (Math.Abs(n.X) + Math.Abs(n.Y) + Math.Abs(n.Z))) return false;
@@ -847,13 +779,10 @@ namespace DvD_Dev
                 {
                     Vector3 a = Vector3.Zero;
                     a.Set(i, 1);
-                    //System.Diagnostics.Debug.WriteLine("Vector a: " + a.ToString());
                     a = Vector3.Cross(a, f[j]);
-                   //System.Diagnostics.Debug.WriteLine("Vector a after cross product: " + a.ToString());
-                   // System.Diagnostics.Debug.WriteLine("Check get is correct, 0: " + a.Get(0) + " 1: " + a.Get(1) + " 2: " + a.Get(2));
                     double d1 = Vector3.Dot(p[j], a);
                     double d2 = Vector3.Dot(p[(j + 1) % 3], a);
-                    double rr = r * ( Math.Abs(a.Get((i + 1) % 3)) + Math.Abs(a.Get((i + 2) % 3)) ); 
+                    double rr = r * (Math.Abs(a.Get((i + 1) % 3)) + Math.Abs(a.Get((i + 2) % 3)));
                     if (Math.Min(d1, d2) > rr || Math.Max(d1, d2) < -rr) return false;
                 }
             }
@@ -882,9 +811,9 @@ namespace DvD_Dev
                 {
                     CreateChildren();
                     Vector3 corner = corners(0);
-                    int xi = (int) MathF.Floor((p.X - corner.X) * 2 / size);
-                    int yi =(int)  MathF.Floor((p.Y - corner.Y) * 2 / size);
-                    int zi =(int) MathF.Floor((p.Z - corner.Z) * 2 / size);
+                    int xi = (int)MathF.Floor((p.X - corner.X) * 2 / size);
+                    int yi = (int)MathF.Floor((p.Y - corner.Y) * 2 / size);
+                    int zi = (int)MathF.Floor((p.Z - corner.Z) * 2 / size);
                     children[xi, yi, zi].DivideUntilLevel(p, maxLevel, markAsBlocked);
                 }
                 else
@@ -896,34 +825,23 @@ namespace DvD_Dev
 
         public void DivideTriangleUntilLevel(Vector3 p1, Vector3 p2, Vector3 p3, int maxLevel, bool markAsBlocked = false)
         {
-           // System.Diagnostics.Debug.WriteLine("DivideTriangleUntilLevel is called with p1: " + p1.ToString() + " p2: " + p2.ToString() + " p3: " + p3.ToString());
             if (IntersectTriangle(p1, p2, p3))
             {
                 containsBlocked = containsBlocked || markAsBlocked;
                 if (level < maxLevel)
                 {
                     CreateChildren();
-                    //System.Diagnostics.Debug.Write("children = ");
-                    foreach (OctreeNode c in children)
-                    {
-                        //MapPage.ShowTriangle(c.center);
-                       // System.Diagnostics.Debug.Write(c.center + ", ");
-                    }
-                    //System.Diagnostics.Debug.Write("\n");
+
                     for (int xi = 0; xi < 2; xi++)
                         for (int yi = 0; yi < 2; yi++)
                             for (int zi = 0; zi < 2; zi++)
                             {
-                                //System.Diagnostics.Debug.WriteLine("Parent's center: " + this.center 
-                                //    + " children's center: " + children[xi, yi, zi].center);
                                 children[xi, yi, zi].DivideTriangleUntilLevel(p1, p2, p3, maxLevel, markAsBlocked);
                             }
                 }
                 else
                 {
-                  // System.Diagnostics.Debug.WriteLine("No more calling DividTriangleUntilLevel");
                     blocked = blocked || markAsBlocked;
-                    //System.Diagnostics.Debug.WriteLine(this.center.ToString() + "is blocked? " + blocked);
                 }
             }
         }
@@ -948,22 +866,6 @@ namespace DvD_Dev
             }
         }
 
-        /*public bool LineOfSight(Vector3 p1, Vector3 p2) {
-            if (!containsBlocked) return true;
-            if (IntersectLine(p1, p2)) {
-                if (children != null) {
-                    for (int xi = 0; xi < 2; xi++)
-                        for (int yi = 0; yi < 2; yi++)
-                            for (int zi = 0; zi < 2; zi++)
-                                if (!children[xi, yi, zi].LineOfSight(p1, p2)) return false;
-                    return true;
-                } else {
-                    return !blocked;
-                }
-            }
-            return true;
-        }*/
-
         private void Leaves(List<OctreeNode> result)
         {
             if (children != null)
@@ -984,55 +886,12 @@ namespace DvD_Dev
                 result.Add(this);
             }
         }
+
         public List<OctreeNode> Leaves()
         {
             List<OctreeNode> result = new List<OctreeNode>();
             Leaves(result);
             return result;
         }
-
-
-
-        //GameObject disp;
-        //public void DisplayVoxels(int maxLevel = -1, bool blockedOnly = true)
-        //{
-        //    if (children != null && (maxLevel == -1 || level < maxLevel))
-        //    {
-        //        if (disp != null)
-        //        {
-        //            GameObject.Destroy(disp);
-        //            disp = null;
-        //        }
-        //        for (int xi = 0; xi < 2; xi++)
-        //            for (int yi = 0; yi < 2; yi++)
-        //                for (int zi = 0; zi < 2; zi++)
-        //                    children[xi, yi, zi].DisplayVoxels(maxLevel, blockedOnly);
-        //    }
-        //    else if (containsBlocked || !blockedOnly)
-        //    {
-        //        if (disp == null)
-        //        {
-        //            disp = GameObject.Instantiate(GameObject.Find("OctreeObj"));
-        //            disp.transform.position = center;
-        //            disp.transform.localScale = Vector3.One * size * 0.9f;
-        //        }
-        //        disp.GetComponent<MeshRenderer>().material.color = containsBlocked ? new Color(0.7f, 0.7f, 0.7f) : new Color(level * 0.05f, level * 0.05f, level * 0.15f);
-        //    }
-        //}
-        //public void ClearDisplay()
-        //{
-        //    if (disp != null)
-        //    {
-        //        GameObject.Destroy(disp);
-        //        disp = null;
-        //    }
-        //    if (children != null)
-        //    {
-        //        for (int xi = 0; xi < 2; xi++)
-        //            for (int yi = 0; yi < 2; yi++)
-        //                for (int zi = 0; zi < 2; zi++)
-        //                    children[xi, yi, zi].ClearDisplay();
-        //    }
-        //}
     }
 }

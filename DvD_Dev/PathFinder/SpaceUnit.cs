@@ -151,37 +151,29 @@ namespace DvD_Dev
         //    }
         //}
 
-        public void MoveOrder(Vector3 targetPoint, float range, MapController mapController)
+        public void MoveOrder(Vector3 targetPoint, float range)
         {
-            MoveOrder(spaceGraph.FindPath(spaceGraph.LazyThetaStar, position, targetPoint, space), range, mapController);
+            MoveOrder(spaceGraph.FindPath(spaceGraph.LazyThetaStar, position, targetPoint, space), range);
         }
 
-        public void MoveOrder(List<Node> wp, float range, MapController mapController)
+        public void MoveOrder(List<Node> wp, float range)
         {
-            ////System.Diagnostics.Debug.WriteLine("Calling SpaceUnit.MoveOrder by node");
             if (wp == null || !movable) return;
             wayPoints = new Queue<Vector3>();
             List<BasicGeoposition> posList = new List<BasicGeoposition>();
-            ////System.Diagnostics.Debug.WriteLine("Path between 2 points");
             foreach (Node node in wp)
             {
                 wayPoints.Enqueue(node.center);
-                //MapController.DropPin(new BasicGeoposition { }, "Path");
-                ////System.Diagnostics.Debug.WriteLine(node.center);
                 float x = PathFinder.ConvertLocalToLatLon(node.center.X, node.center.Z)[0];
                 float z = PathFinder.ConvertLocalToLatLon(node.center.X, node.center.Z)[1];
-                //mapController.DropPin(new BasicGeoposition { Latitude = x, Longitude = z, Altitude = node.center.Y }, "PATH");
                 posList.Add(new BasicGeoposition { Latitude = x, Longitude = z, Altitude = node.center.Y });
             }
-
-            //mapController.DrawLine(posList, Color.FromArgb(255, 140, 0, 255));
             wayPointRange = range;
             state = UnitState.MOVING;
         }
 
         public void MoveOrder(List<Vector3> wp, float range)
-        {
-            ////System.Diagnostics.Debug.WriteLine("Calling SpaceUnit.MoveOrder by vector");
+        { 
             if (wp == null || !movable) return;
             wayPoints = new Queue<Vector3>();
             foreach (Vector3 vec in wp)

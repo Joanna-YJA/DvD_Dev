@@ -1,4 +1,5 @@
-﻿using g3;
+﻿using Esri.ArcGISRuntime.UI.Controls;
+using g3;
 using NetTopologySuite.Geometries;
 using System.Collections;
 using System.Collections.Generic;
@@ -25,7 +26,7 @@ namespace DvD_Dev
 
         private World() { }
 
-        public World(List<Mesh> meshes, float size, Vector3 center, int maxLevel, float normalExtension, bool progressive = true, Graph.GraphType type = Graph.GraphType.CENTER)
+        public World(ref SceneView sceneView, List<Mesh> meshes, float size, Vector3 center, int maxLevel, float normalExtension, bool progressive = true, Graph.GraphType type = Graph.GraphType.CENTER)
         {
             space = progressive ? new ProgressiveOctree(size, center - Vector3.One * (size / 2), maxLevel) : new Octree(size, center - Vector3.One * size / 2, maxLevel);
             space.BuildFromMeshes(meshes, normalExtension);

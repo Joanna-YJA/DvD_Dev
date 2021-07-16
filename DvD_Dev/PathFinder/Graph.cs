@@ -1,9 +1,13 @@
-﻿using System;
-using System.Collections;
+﻿using C5;
+using Esri.ArcGISRuntime.Geometry;
+using Esri.ArcGISRuntime.Mapping;
+using Esri.ArcGISRuntime.Symbology;
+using Esri.ArcGISRuntime.UI;
+using Esri.ArcGISRuntime.UI.Controls;
+using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Numerics;
-using C5;
-using Newtonsoft.Json;
 
 namespace DvD_Dev
 {
@@ -13,6 +17,7 @@ namespace DvD_Dev
         public int connectIndex = 0;
         public List<Arc> arcs;
         public Vector3 center;
+
         public Node(Vector3 _center, int _index)
         {
             center = _center;
@@ -72,6 +77,14 @@ namespace DvD_Dev
             OTHER
         }
         public GraphType type = GraphType.OTHER;
+
+        static SimpleMarkerSymbol nodeSymbol = new SimpleMarkerSymbol()
+        {
+            Color = Color.Yellow,
+            Size = 10,
+            Style = SimpleMarkerSymbolStyle.Triangle
+        };
+        static SimpleLineSymbol arcSymbol = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Yellow, 1.0);
 
         public Graph()
         {
@@ -175,7 +188,6 @@ namespace DvD_Dev
             temp.Add(node);
             while (node.parent != null)
             {
-                System.Diagnostics.Debug.WriteLine("For node " + node.center + " ,Adding node's parent " + node.parent.center + " to List<Node>");
                 temp.Add(node.parent);
                 node = node.parent;
             }
@@ -204,48 +216,29 @@ namespace DvD_Dev
         }
         public List<List<Node>> FindPath(PathFindingMethod method, Vector3 source, List<Vector3> destinations, Octree space, H h = null)
         {
-            //foreach (Node n in this.nodes)
-            //{
-            //    if (n.center.Equals(new Vector3(-58.625f, 10.625f, 141.375f)))
-            //    {
-            //        foreach (Arc a in n.arcs)
-            //            System.Diagnostics.Debug.WriteLine(n.index + ")In Graph find path, Target node n is connected to " + a.to.center);
-            //    }
-            //}
-            //System.Diagnostics.Debug.WriteLine("When finding path from " + source + " to [" + String.Join(". ", destinations) + "]");
             List<Node> sourceNeighbors = null;
-            //if (space.Find(source).blocked) return new List<List<Node>>();
+
             if (type == GraphType.CENTER)
             {
-                sourceNeighbors = space.FindCorrespondingCenterGraphNode(source);
-               // System.Diagnostics.Debug.WriteLine("Because graph is center graph, Find Corresponding Center Graph Node...");
+               sourceNeighbors = space.FindCorrespondingCenterGraphNode(source);
             }
             else if (type == GraphType.CORNER)
             {
                 sourceNeighbors = space.FindBoundingCornerGraphNodes(source);
-               // System.Diagnostics.Debug.WriteLine("Because graph is corner graph, Find Bounding Corner Graph Nodes...");
             }
             else if (type == GraphType.CROSSED)
             {
-                sourceNeighbors = space.FindBoundingCrossedGraphNodes(source);
-                //System.Diagnostics.Debug.WriteLine("Because graph is crossed graph, Find Bounding Crossed Graph Nodes...");
+               sourceNeighbors = space.FindBoundingCrossedGraphNodes(source);
             }
-            System.Diagnostics.Debug.Write("sourceNeighbors: [");
-            foreach (Node sn in sourceNeighbors)
-                System.Diagnostics.Debug.Write(sn.center + ", ");
-            System.Diagnostics.Debug.Write("]\n");
-
-
 
             Node tempSourceNode = AddTemporaryNode(source, sourceNeighbors);
             List<Node> tempDestinationNodes = new List<Node>();
             foreach (Vector3 destination in destinations)
             {
                 List<Node> destinationNeighbors = null;
-
                 if (type == GraphType.CENTER)
                 {
-                    destinationNeighbors = space.FindCorrespondingCenterGraphNode(destination);
+                   destinationNeighbors = space.FindCorrespondingCenterGraphNode(destination);
                 }
                 else if (type == GraphType.CORNER)
                 {
@@ -253,28 +246,15 @@ namespace DvD_Dev
                 }
                 else if (type == GraphType.CROSSED)
                 {
-                    destinationNeighbors = space.FindBoundingCrossedGraphNodes(destination);
+                   destinationNeighbors = space.FindBoundingCrossedGraphNodes(destination);
                 }
-
-                //System.Diagnostics.Debug.WriteLine("type: " + type);
-                System.Diagnostics.Debug.Write("destinationNeighbors: [");
-                foreach (Node dn in destinationNeighbors)
-                {
-                    if (dn != null) System.Diagnostics.Debug.Write(dn.center + ", ");
-                }
-                System.Diagnostics.Debug.Write("]\n");
 
                 tempDestinationNodes.Add(AddTemporaryNode(destination, destinationNeighbors));
             }
-            //System.Diagnostics.Debug.Write("sourceNeighbors: [");
-            //foreach (Node sn in sourceNeighbors)
-            //    System.Diagnostics.Debug.Write(sn.center + ", ");
-            //System.Diagnostics.Debug.Write("]\n");
-
+   
             List <List<Node>> result = FindPath(method, tempSourceNode, tempDestinationNodes, space, h);
             RemoveTemporaryNodes();
 
-           // System.Diagnostics.Debug.WriteLine("waypoints are " + result[0].Count);
             return result;
         }
 
@@ -463,7 +443,7 @@ namespace DvD_Dev
                                 successor.parent = parent;
                                 successor.g = gNew;
                                 successor.f = successor.g + successor.h;
-                            } //
+                            } 
                             if (successor.g < g_old)
                             {
                                 if (successor.open)
@@ -492,26 +472,12 @@ namespace DvD_Dev
                 result.Add(Backtrack(current));
                 open.Add(ref current.handle, current);
             }
-            //System.Diagnostics.Debug.WriteLine("time: " + (Time.realtimeSinceStartup - t) + " NodeCount: " + nodeCount + " NewNodeCount: " + newNodeCount);
             return result;
         }
 
 
         public List<List<Node>> LazyThetaStar(Node source, List<Node> destinations, Octree space, H h = null)
         {
-            //Node testFocus = null;
-            //foreach (Node n in this.nodes)
-            //{
-            //    //if (n.center.Equals(new Vector3(-57.06298f, 10f, 142.9338f)))
-            //    if(n.index == -1)
-            //    {
-            //        testFocus = n;
-            //        //foreach (Arc a in n.arcs)
-            //        //    System.Diagnostics.Debug.WriteLine(n.index + ")In Lazy Theta Star, Target node n is connected to " + a.to.center);
-            //    }
-            //}
-            //float t = Time.realtimeSinceStartup;
-
             int nodeCount = 0;
             int newNodeCount = 0;
 
@@ -570,12 +536,6 @@ namespace DvD_Dev
                 {
                     nodeCount++;
                     current = open.DeleteMin();
-                    //System.Diagnostics.Debug.WriteLine("current node: " + current.center + " #arcs: " + current.arcs.Count);
-                    //if (current.parent == null)
-                    //    System.Diagnostics.Debug.WriteLine("current has no parent");
-                    //else
-                    //    System.Diagnostics.Debug.WriteLine("current's parent " + current.parent.center);
-                    // System.Diagnostics.Debug.WriteLine("Getting current form open heap, center: " + current.center + " index: " + current.index);
                     current.open = false;
                     current.closed = true; //<<Closed set here
                     // SetVertex
@@ -589,11 +549,6 @@ namespace DvD_Dev
                             float tempg;
                             if (infoTable.TryGetValue(a.to.index, out tempParent) && tempParent.closed)
                             {
-                                //test
-                                //Vector3 test = (current.center - tempParent.center);
-                                //System.Diagnostics.Debug.WriteLine("Length of vector: " + test.Length());
-                                //UnityEngine.Vector3 testU = new UnityEngine.Vector3(test.X, test.Y, test.Z);
-                                //System.Diagnostics.Debug.WriteLine("Magnitude of vector: " + testU.magnitude);
                                 tempg = tempParent.g + (current.center - tempParent.center).Length();
                                 if (tempg < realg)
                                 {
@@ -603,25 +558,12 @@ namespace DvD_Dev
                             }
                         }
                         current.parent = realParent; //<<Parent set here
-                        //System.Diagnostics.Debug.WriteLine("0. Set parent " + current.parent.center + "=>" + current.center);
                         current.g = realg;
                     }
-                    //test
-                    else {
-                       // System.Diagnostics.Debug.WriteLine("Pass LOS check because, current.parent == null?" + current.parent == null);
-                       //if(current.parent != null)
-                       //     System.Diagnostics.Debug.WriteLine(" or there is LOS w current.parent and current? " + space.LineOfSight(current.parent.center, current.center, false, type == GraphType.CENTER));
-                      }
                     if (current.index == destination.index)
                     {
-                        //System.Diagnostics.Debug.WriteLine("current index = dest index, current: " + current.center + " index: " + current.index + " dest: " + destination.center + " index: " + destination.index);
                         break;
                     }
-                    //System.Diagnostics.Debug.WriteLine("current.index " + current.index + " Arcs connnected to current node " + current.center);
-                    //System.Diagnostics.Debug.WriteLine("testFocus == null? " + (testFocus == null) + " testFocus == current? " + (testFocus == current) + " testFocus.center " + testFocus.center);
-                    //foreach (Arc ac in current.arcs)
-                    //    System.Diagnostics.Debug.WriteLine(ac.to.center + ", ");
-                    //System.Diagnostics.Debug.WriteLine("]\n");
 
                     foreach (Arc a in current.arcs)
                     {
@@ -630,8 +572,6 @@ namespace DvD_Dev
                         {
                             newNodeCount++;
                             successor = new NodeInfo(a.to);
-                            //System.Diagnostics.Debug.WriteLine("Does a.t/succesor " + successor.center + " has any arcs? arc count: " + a.to.arcs.Count);
-                            //System.Diagnostics.Debug.WriteLine("Index of successor node: " + successor.index);
                             successor.g = float.MaxValue;
                             successor.h = h(successor, destination);
                             infoTable[a.to.index] = successor;
@@ -644,9 +584,7 @@ namespace DvD_Dev
                             float gNew = parent.g + (successor.center - parent.center).Length();
                             if (successor.g > gNew)
                             {
-                                //System.Diagnostics.Debug.WriteLine("successor.g > gNew for successor " + successor.center + " and parent " + parent.center);
                                 successor.parent = parent; //<<Parent set here
-                               // System.Diagnostics.Debug.WriteLine("1. Set parent " + successor.parent.center + " => " +  successor.center);
                                 successor.g = gNew;
                                 successor.f = successor.g + successor.h;
                             } //
@@ -654,7 +592,7 @@ namespace DvD_Dev
                             {
                                 if (successor.open)
                                     open.Delete(successor.handle);
-                               //System.Diagnostics.Debug.WriteLine("Node's successor " + successor.center + " is added back to heap");
+                           
                                 open.Add(ref successor.handle, successor);
                                 successor.open = true;
                             }
@@ -672,27 +610,38 @@ namespace DvD_Dev
                     while (check.parent.parent != null && space.LineOfSight(check.parent.parent.center, check.center, false, type == GraphType.CENTER))
                     {
                         check.parent = check.parent.parent; //<<Parent set here
-                        //System.Diagnostics.Debug.WriteLine("2. Set parent " + check.parent.center + "=>" + check.center);
                     }
                     check = check.parent;
                 }
                 result.Add(Backtrack(current));
                 open.Add(ref current.handle, current);
             }
-            //System.Diagnostics.Debug.WriteLine("time: " + (Time.realtimeSinceStartup - t) + " NodeCount: " + nodeCount + " NewNodeCount: " + newNodeCount);
-            System.Diagnostics.Debug.WriteLine("Result of Lazy Theta Star: [");
-            foreach (List<Node> lr in result)
-            {
-                if (lr != null)
-                    foreach (Node r in lr)
-                    {
-                        if (r != null) System.Diagnostics.Debug.WriteLine(r.center + ", ");
-                    }
-            }
-            System.Diagnostics.Debug.WriteLine("]\n");
             return result;
         }
+
+        public void DisplayGraphNodes(ref GraphicsOverlay overlay)
+        {
+            for (int i = 0; i < 6000; i++)
+            {
+                Vector3 center = this.nodes[i].center;
+                MapPoint point = new MapPoint(center.X * 10, center.Y * 10, center.Z * 10, PathFinder.spatialRef);
+                Graphic node = new Graphic(point, nodeSymbol);
+                overlay.Graphics.Add(node);
+
+                foreach (Arc a in this.nodes[i].arcs)
+                {
+
+                    Vector3 to = a.to.center,
+                            from = a.from.center;
+                    MapPoint toPoint = new MapPoint(to.X * 10, to.Y * 10, to.Z * 10, PathFinder.spatialRef),
+                             fromPoint = new MapPoint(from.X * 10, from.Y * 10, from.Z * 10, PathFinder.spatialRef);
+                    Polyline arc = new Polyline(new List<MapPoint> { toPoint, fromPoint });
+                    Graphic arcGraphic = new Graphic(arc, arcSymbol);
+                    overlay.Graphics.Add(arcGraphic);
+                }
+            }
+        }
+
     }
 }
-
 
