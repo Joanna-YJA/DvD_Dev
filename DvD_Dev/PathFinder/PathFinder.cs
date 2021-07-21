@@ -1,7 +1,9 @@
 ﻿using Esri.ArcGISRuntime.Data;
 using Esri.ArcGISRuntime.Geometry;
+using ArcGisGeometry = Esri.ArcGISRuntime.Geometry.Geometry;
 using Esri.ArcGISRuntime.Mapping;
 using Esri.ArcGISRuntime.Mapping.Labeling;
+using Esri.ArcGISRuntime.Ogc;
 using Esri.ArcGISRuntime.Symbology;
 using Esri.ArcGISRuntime.UI;
 using Esri.ArcGISRuntime.UI.Controls;
@@ -21,6 +23,7 @@ using AttributesTable = NetTopologySuite.Features.AttributesTable;
 using Colors = System.Drawing.Color;
 using Feature = NetTopologySuite.Features.Feature;
 using Geometry = NetTopologySuite.Geometries.Geometry;
+using Esri.ArcGISRuntime.Geometry;
 
 namespace DvD_Dev
 {
@@ -175,7 +178,8 @@ namespace DvD_Dev
                 sceneView.Scene.OperationalLayers.Add(layer);
 
                 await GenerateMeshes(targetFiles[0], targetFiles[1]);
-            } else throw new FileNotFoundException("Folder not found.");
+            }
+            else throw new FileNotFoundException("Folder not found.");
         }
 
 
@@ -238,42 +242,80 @@ namespace DvD_Dev
 
             Coordinate testCoord = new CoordinateZ(11557028.5197362 / 10, 150832.223844404 / 10, 0);
             Vector3 testCenter = new Vector3(Convert.ToSingle(testCoord.X), Convert.ToSingle(testCoord.Y), Convert.ToSingle(testCoord.Z));
-            shipWorld = new World(ref sceneView, meshes, dimensions, testCenter, octreeLevels, ext, true, Graph.GraphType.CORNER);
+            shipWorld = new World(ref sceneView, meshes, dimensions, testCenter, octreeLevels, 0.5f, true, Graph.GraphType.CORNER);
 
             command = new Commanding(ref sceneView, shipWorld);
         }
 
-        public void SpiralSearch(MapPoint[] sourceDest)
+        public void TravelAndSearch(MapPoint[] sourceDest)
         {
             points = new List<MapPoint>();
-            Vector3[] sourceDestLocal = ConvertToLocal(sourceDest);
-            MoveToCoords(sourceDestLocal[0], sourceDestLocal[1]);
-            MoveInSpiral(sourceDestLocal[1]);
+            Vector3 localSrc = Vector3.Zero, localDest = Vector3.Zero;
+            ConvertToLocal(sourceDest, ref localSrc, ref localDest);
+            command.ConvertToAvailPoints(ref localSrc, ref localDest);
+            System.Diagnostics.Debug.WriteLine("Final changed dest " + localDest);
+            MoveToCoords(localSrc, localDest);
+            SearchInSpiral(localDest);
 
-            if(isDisplayPath) command.ShowPath(ref points, pathOverlay);
+            if (isDisplayPath) command.ShowPath(ref points, pathOverlay);
             if (isDisplayCoverage)
             {
-               footprintCalc.ShowFootprintCoverage(ref points, pathOverlay);
+                footprintCalc.ShowFootprintCoverage(ref points, pathOverlay);
                 footprintCalc.ShowSeperateFootprint(ref points, pathOverlay);
+            }
+            WriteToKml();
+        }
+
+        public async void WriteToKml()
+        {
+            KmlDocument kmlDoc = new KmlDocument() { Name = "KML Drone Path" };
+            foreach (MapPoint p in points)
+            {
+                if (p == null) continue;
+                ArcGisGeometry geom = (ArcGisGeometry)p;
+                ArcGisGeometry projectedGeom = GeometryEngine.Project(geom, SpatialReferences.Wgs84);
+                KmlGeometry kmlGeom = new KmlGeometry(projectedGeom, KmlAltitudeMode.ClampToGround);
+                KmlPlacemark placemark = new KmlPlacemark(kmlGeom);
+
+                kmlDoc.ChildNodes.Add(placemark);
+            }
+
+            FileSavePicker savePicker = new FileSavePicker();
+            savePicker.SuggestedStartLocation = PickerLocationId.Downloads;
+            savePicker.FileTypeChoices.Add("KMZ file", new List<string>() { ".kmz" });
+            Windows.Storage.StorageFile file = await savePicker.PickSaveFileAsync();
+
+            if (file != null)
+            {
+                try
+                {
+                    using (Stream stream = await file.OpenStreamForWriteAsync())
+                    {
+                        // Write the KML document to the stream of the file.
+                        await kmlDoc.WriteToAsync(stream);
+                    }
+                    System.Diagnostics.Debug.WriteLine("Item saved.");
+                }
+                catch
+                {
+                    System.Diagnostics.Debug.WriteLine("File not saved.");
+                }
             }
         }
 
-        public Vector3[] ConvertToLocal(MapPoint[] sourceDest)
+        public void ConvertToLocal(MapPoint[] sourceDest, ref Vector3 localSrc, ref Vector3 localDest)
         {
-            Vector3[] res = new Vector3[2];
             float srcX = Convert.ToSingle(sourceDest[0].X) / 10,
                  srcY = Convert.ToSingle(sourceDest[0].Y) / 10,
                  //srcZ = Convert.ToSingle(sourceDest[0].Z) / 10;
                  srcZ = 25f / 10;
-            res[0] = new Vector3(srcX, srcY, srcZ);
+            localSrc = new Vector3(srcX, srcY, srcZ);
 
             float destX = Convert.ToSingle(sourceDest[1].X) / 10,
                 destY = Convert.ToSingle(sourceDest[1].Y) / 10,
                  // destZ = Convert.ToSingle(sourceDest[1].Z) / 10;
                  destZ = 25f / 10;
-            res[1] = new Vector3(destX, destY, destZ);
-
-            return res;
+            localDest = new Vector3(destX, destY, destZ);
         }
 
         // Read data from the input fields and move to provided coords
@@ -283,47 +325,9 @@ namespace DvD_Dev
             command.MoveOrder(localDest, ref points);
         }
 
-        public void MoveInSpiral(Vector3 dest)
+        public void SearchInSpiral(Vector3 localDest)
         {
-            List<Vector3> spiralEdges = new List<Vector3>();
-            Vector3 prev = dest;
-            System.Diagnostics.Debug.WriteLine("original: " + dest.ToString());
-            spiralEdges.Add(dest);
-
-            float localhalfHeight = footprintCalc.getHalfHeight() / 10, localHalfBase = footprintCalc.getHalfBase() / 10;
-            //System.Diagnostics.Debug.WriteLine("Local half height and half base " + localhalfHeight + " " + localHalfBase);
-            float incrY = localhalfHeight + localHalfBase , incrX = localHalfBase * 2;
-            System.Diagnostics.Debug.WriteLine("incrY: " + incrY + " incrX: " + incrX);
-
-            Vector3 forward, side;
-            int sign = 1;
-
-            for (int i = 0; i < 10 * 2 ; i++)
-            {
-                forward = new Vector3(prev.X, prev.Y + (sign * incrY), prev.Z);
-                System.Diagnostics.Debug.WriteLine("forward: " + forward.ToString());
-                spiralEdges.Add(forward);
-
-                MoveToCoords(prev, forward);
-
-                prev = forward;
-                incrY += localHalfBase;
-                if (i > 0) incrY += localHalfBase;
-                else incrY += localhalfHeight;
-
-                side = new Vector3(prev.X + (sign * incrX), prev.Y, prev.Z); 
-                spiralEdges.Add(side);
-                System.Diagnostics.Debug.WriteLine("side: " + side.ToString());
-                MoveToCoords(prev, side);
-
-                prev = side;
-                incrX += localHalfBase + localHalfBase;
-                sign *= -1;
-            }
-            //Add the last point
-            OctreeNode last = shipWorld.space.Find(prev);
-            Vector3 c = last.center;
-            points.Add(new MapPoint(c.X * 10, c.Y * 10, c.Z * 10, spatialRef));
+            command.SearchInSpiral(ref points, localDest);
         }
 
         public static List<float> ConvertLocalToLatLon(float x, float z)
@@ -349,7 +353,7 @@ namespace DvD_Dev
 
         public void DisplayMesh()
         {
-            if(meshOverlay == null)
+            if (meshOverlay == null)
             {
                 meshOverlay = new GraphicsOverlay();
                 meshOverlay.SceneProperties.SurfacePlacement = SurfacePlacement.Absolute;
@@ -384,7 +388,20 @@ namespace DvD_Dev
 
             shipWorld.space.DisplayOctreeBlockedNodes(ref octreeOverlay);
         }
-        
+
+        public void DisplayOctreeNodes()
+        {
+            if (octreeOverlay == null)
+            {
+                octreeOverlay = new GraphicsOverlay();
+                octreeOverlay.SceneProperties.SurfacePlacement = SurfacePlacement.Absolute;
+                sceneView.GraphicsOverlays.Add(octreeOverlay);
+            }
+
+            shipWorld.space.DisplayOctreeNodes(ref octreeOverlay);
+        }
+
+
         public void DisplayGraphNodes()
         {
             if (graphOverlay == null)
@@ -394,7 +411,7 @@ namespace DvD_Dev
                 sceneView.GraphicsOverlays.Add(graphOverlay);
             }
 
-            shipWorld.spaceGraph.DisplayGraphNodes(ref graphOverlay);
+            shipWorld.spaceGraph.DisplayGraphNodes(ref graphOverlay, shipWorld.space);
         }
 
         public void DisplayPath()

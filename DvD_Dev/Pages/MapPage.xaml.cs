@@ -67,6 +67,7 @@ namespace DvD_Dev
             //Uncomment as neccessary
             //pathFinder.DisplayMesh();
             //pathFinder.DisplayMeshNormals();
+            //pathFinder.DisplayOctreeNodes();
             //pathFinder.DisplayOctreeBlockedNodes();
             //pathFinder.DisplayGraphNodes();
             pathFinder.DisplayPath();
@@ -89,11 +90,11 @@ namespace DvD_Dev
             {
                 graphicWithSymbol = new Graphic(tappedPoint, destinationSymbol);
                 sourceDest[1] = projectedPoint;
-                pathFinder.SpiralSearch(sourceDest);
+                pathFinder.TravelAndSearch(sourceDest);
             }
 
             isEvenClick = !isEvenClick;
-            //overlay.Graphics.Add(graphicWithSymbol);
+            overlay.Graphics.Add(graphicWithSymbol);
         }
     }
 }

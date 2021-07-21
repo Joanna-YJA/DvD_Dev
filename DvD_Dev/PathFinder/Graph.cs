@@ -13,6 +13,7 @@ namespace DvD_Dev
 {
     class Node
     {
+        public bool visited = false;
         public int index;
         public int connectIndex = 0;
         public List<Arc> arcs;
@@ -80,10 +81,17 @@ namespace DvD_Dev
 
         static SimpleMarkerSymbol nodeSymbol = new SimpleMarkerSymbol()
         {
-            Color = Color.Yellow,
+            Color = Color.DarkGreen,
             Size = 10,
             Style = SimpleMarkerSymbolStyle.Triangle
         };
+        static SimpleMarkerSymbol blockedNodeSymbol = new SimpleMarkerSymbol()
+        {
+            Color = Color.Red,
+            Size = 10,
+            Style = SimpleMarkerSymbolStyle.Triangle
+        };
+
         static SimpleLineSymbol arcSymbol = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Yellow, 1.0);
 
         public Graph()
@@ -200,6 +208,63 @@ namespace DvD_Dev
             return result;
         }
 
+        //public List<Node> BfsSearch(Vector3 source, Octree space)
+        //{
+        //    System.Diagnostics.Debug.WriteLine("Original source vector passed to bfs search: " + source);
+        //    List<Node> res = new List<Node>();
+        //    List<Node> sourceNeighbors = null;
+
+        //    if (type == GraphType.CENTER)
+        //    {
+        //        sourceNeighbors = space.FindCorrespondingCenterGraphNode(source);
+        //    }
+        //    else if (type == GraphType.CORNER)
+        //    {
+        //        sourceNeighbors = space.Find2DBoundingCornerGraphNodes(source);
+        //    }
+        //    else if (type == GraphType.CROSSED)
+        //    {
+        //        sourceNeighbors = space.FindBoundingCrossedGraphNodes(source);
+        //    }
+
+        //    float z = float.MaxValue;
+        //    foreach (Node n in sourceNeighbors)
+        //        if (Math.Abs(z - source.Z) > Math.Abs(n.center.Z - source.Z)) z = n.center.Z;
+        //    System.Diagnostics.Debug.WriteLine("z: " + z);
+
+        //    Node tempSourceNode = AddTemporaryNode(source, sourceNeighbors);
+
+        //    Queue<Node> q = new Queue<Node>();
+        //    tempSourceNode.visited = true;
+        //    q.Enqueue(tempSourceNode);
+
+        //    while(q.Count > 0)
+        //    {
+        //        Node curr = q.Dequeue();
+        //        res.Add(curr);
+        //        List<Node> validNeighbors = new List<Node>();
+        //        foreach (Arc a in curr.arcs)
+        //        {
+        //            //System.Diagnostics.Debug.WriteLine("This node is connected to " + a.to.center.ToString());
+        //            Node neighbor = a.to;
+        //            if (!neighbor.visited 
+        //                && Math.Abs(neighbor.center.Z - curr.center.Z) < 0.001 
+        //               // && neighbor.center.Z > curr.center.Z
+        //                && !space.IsBlocked(space.PositionToIndex(neighbor.center), false, false))
+        //            {
+        //                validNeighbors.Add(neighbor);
+        //            }                   
+        //        }
+
+        //        foreach (Node n in validNeighbors)
+        //        {
+        //            n.visited = true;
+        //            q.Enqueue(n);
+        //        }
+        //    }
+        //    RemoveTemporaryNodes();
+        //    return res;
+        //}
         public delegate List<List<Node>> PathFindingMethod(Node source, List<Node> destinations, Octree space, H h = null);
 
         public List<Node> FindPath(PathFindingMethod method, Node source, Node destination, Octree space, H h = null)
@@ -619,13 +684,17 @@ namespace DvD_Dev
             return result;
         }
 
-        public void DisplayGraphNodes(ref GraphicsOverlay overlay)
+        public void DisplayGraphNodes(ref GraphicsOverlay overlay, Octree space)
         {
-            for (int i = 0; i < 6000; i++)
+            for (int i = 0; i < 20000; i++)
             {
                 Vector3 center = this.nodes[i].center;
                 MapPoint point = new MapPoint(center.X * 10, center.Y * 10, center.Z * 10, PathFinder.spatialRef);
-                Graphic node = new Graphic(point, nodeSymbol);
+                Graphic node;
+                if(space.IsBlocked(space.PositionToIndex(center), false, false))
+                    node = new Graphic(point, blockedNodeSymbol);
+                else 
+                    node = new Graphic(point, nodeSymbol);
                 overlay.Graphics.Add(node);
 
                 foreach (Arc a in this.nodes[i].arcs)

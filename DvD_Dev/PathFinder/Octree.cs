@@ -33,6 +33,13 @@ namespace DvD_Dev
             Style = SimpleMarkerSymbolStyle.Triangle
         };
 
+        static SimpleMarkerSymbol nodeSymbol = new SimpleMarkerSymbol()
+        {
+            Color = Color.LightBlue,
+            Size = 10,
+            Style = SimpleMarkerSymbolStyle.Triangle
+        };
+
         private Octree() { }
         public Octree(float _size, Vector3 _corner, int _maxLevel)
         {
@@ -75,6 +82,23 @@ namespace DvD_Dev
         {
             return Find(gridIndex, maxLevel);
         }
+
+        public bool CheckWithinBounds(Vector3 v)
+        {
+            v -= root.center;
+            float r = size / 2;
+            if (v.X >= r || v.X < -r || v.Y >= r || v.Y < -r || v.Z >= r || v.Z < -r) return false;
+            else return true;
+        }
+
+        public bool CheckWithinBounds(Vector3 v, int units)
+        {
+            v -= root.center;
+            float r = units / 2;
+            if (v.X >= r || v.X < -r || v.Y >= r || v.Y < -r || v.Z >= r || v.Z < -r) return false;
+            else return true;
+        }
+
         public OctreeNode Find(int[] gridIndex, int level)
         {
             int xi = gridIndex[0];
@@ -619,7 +643,205 @@ namespace DvD_Dev
             return result;
         }
 
-        public List<Node> FindBoundingCrossedGraphNodes(Vector3 position)
+        //public List<Vector3> OctreeBfs(Vector3 position)
+        //{
+        //    System.Diagnostics.Debug.WriteLine("Original pos is " + position);
+        //    Vector3[] arr = new Vector3[] {new Vector3(10, 0, 0), new Vector3(-10, 0, 0),
+        //                                   new Vector3(0, 10, 0), new Vector3(0, -10, 0)};
+        //    List<Vector3> res = new List<Vector3>();
+        //    HashSet<string> set = new HashSet<string>();
+        //    Queue<Vector3> q = new Queue<Vector3>();
+
+        //    q.Enqueue(position);
+        //    set.Add(position.ToString());
+
+        //    test
+        //    int i = 300;
+
+        //    while (q.Count > 0)
+        //    {
+        //        Vector3 curr = q.Dequeue();
+        //        res.Add(curr);
+
+        //        System.Diagnostics.Debug.WriteLine("take out from q: " + curr.ToString());
+        //        foreach (Vector3 v in arr)
+        //        {
+        //            Vector3 neighbor = new Vector3(curr.X, curr.Y, curr.Z);
+        //            neighbor += v;
+        //            Vector3 centredNeighbor = neighbor - root.center;
+        //            float r = root.size / 2; // - root.tolerance; //todo set tolerance
+        //            string neighborStr = neighbor.ToString();
+
+        //            System.Diagnostics.Debug.WriteLine("neighbor " + neighbor + " Str " + neighborStr + " set contains? " + set.Contains(neighborStr));
+        //            if (centredNeighbor.X >= r || centredNeighbor.X < -r || centredNeighbor.Y >= r || centredNeighbor.Y < -r) continue;
+        //            if (!set.Contains(neighborStr)
+        //                && LineOfSight(curr, neighbor, false, false)) //todo
+        //            {
+        //                System.Diagnostics.Debug.WriteLine("neighbor added, neighbor " + neighbor);
+        //                q.Enqueue(neighbor);
+        //                set.Add(neighborStr);
+        //            }
+        //        }
+
+        //        i--;
+        //        if (i < 0) break;
+
+        //    }
+        //    foreach (Vector3 v in res)
+        //        System.Diagnostics.Debug.WriteLine("res: " + v.ToString());
+        //    System.Diagnostics.Debug.WriteLine("#vectors in result: " + res.Count);
+
+        //    foreach (Vector3 v in res)
+        //    {
+
+        //    }
+        //    return res;
+        //}
+
+        public void SnapToNearestCell(Vector3 localDest, out int row, out int col, out Vector3 pos)
+        {
+           localDest -= root.center;
+            row = (int) Math.Ceiling(localDest.Y);
+            if (row <= 0) row = 49 + Math.Abs(row);
+            else if (row > 0) row = 49 - row;;
+
+            col = (int) Math.Ceiling(localDest.X);
+            if (col >= 0) col += 49;
+            else if (col < 0) col = 49 + col;
+           
+            pos = Vector3.Zero;
+            if (row >= 49) pos.Y = (row - 49) * -1 + root.center.Y;
+            else if (row < 49) pos.Y = (49 - row) + root.center.Y;
+            else pos.Y = 0;
+
+            if (col < 49) pos.X = (49 - col) * -1 + root.center.X;
+            else if (col >= 49) pos.X = (col - 49) + root.center.X;
+            else pos.X = 0;
+
+            pos.Z = localDest.Z;
+
+        
+        }
+
+        public void ConvertMapPointToCell(MapPoint p, out int row, out int col)
+        {
+            Vector3 local = new Vector3((float) p.X / 10, (float)p.Y / 10f, (float)p.Z / 10f);
+            Vector3 res;
+            SnapToNearestCell(local,out row, out col, out res);
+        }
+        public List<Vector3> SearchInSpiral2(Vector3 dest)
+        {
+            int[,] cost = new int[100, 100];
+            Vector3[,] position = new Vector3[100, 100];
+            for (int i = 0; i < 100; i++)
+                for (int j = 0; j < 100; j++)
+                    position[i, j] = Vector3.Zero;
+            List<Vector3> res = new List<Vector3>();
+
+           // res.Add(dest);
+            Vector3 pos;
+            int row, col;
+            SnapToNearestCell(dest, out row, out col, out pos);
+            System.Diagnostics.Debug.WriteLine("Snap to nearest Cell, dest " + dest + " row " + row + " col " + col + " pos " + pos);
+            bool isFound = false;
+            bool testing = true;
+            while (true)
+            {
+                //System.Diagnostics.Debug.WriteLine("row " + row + " col " + col);
+                cost[row, col] = -1;
+                if (position[row, col].Equals(Vector3.Zero)) position[row, col] = pos;
+
+                //if (testing) 
+               //System.Diagnostics.Debug.WriteLine("pos " + position[row, col] + " row " + row + " col " + col);
+               // if (testing)
+             res.Add(pos);
+             //   testing = false;
+
+                isFound = false;
+                int stepCost = int.MaxValue;
+                for(int r = -1; r < 2; r++)
+                {
+                    for(int c = -1; c < 2; c++)
+                    {
+                        if (row + r >= 100 || row + r < 0 || col + c >= 100 || col + c < 0) continue;
+
+                        if (position[row + r, col + c].Equals(Vector3.Zero))
+                        {
+                            position[row + r, col + c] = new Vector3(pos.X + c, pos.Y + r, pos.Z);
+                           // System.Diagnostics.Debug.WriteLine("Updated pos: " + position[row + r, col + c]);
+                        }
+
+                        int currCost = 0;
+                        if (cost[row + r, col + c] == 0)
+                        {
+                            if (LineOfSight(pos, position[row + r, col + c], false, false)) currCost = 10;
+                            else currCost = int.MaxValue;
+
+                            cost[row + r, col + c] = currCost;
+                        }
+                        else if (cost[row + r, col + c] == -1) continue;
+
+                        if(stepCost > cost[row + r, col + c])
+                        {
+
+                            stepCost = currCost;
+                            row = row + r;
+                            col = col + c;
+                        }
+
+                        if (stepCost == 10)
+                        {
+                            isFound = true;
+                            break;
+                        }
+                    }
+                    if (isFound) break;
+                }
+                if (!isFound)
+                {
+                   // System.Diagnostics.Debug.WriteLine("neighbor is NOT FOUND");
+                    break;
+                }
+                pos = position[row, col];
+            }
+            //foreach (Vector3 r in res)
+            //    System.Diagnostics.Debug.WriteLine("res vectors: " + r);
+            return res;
+        }
+
+       
+
+            //    foreach (Vector3 v in path)
+            //        System.Diagnostics.Debug.WriteLine("Path points are " + v);
+            //    return path;
+            //}
+
+            //public List<Node> Find2DBoundingCornerGraphNodes(Vector3 position)
+            //{
+            //    List<Node> result = new List<Node>();
+            //    OctreeNode node = Find(position);
+            //    System.Diagnostics.Debug.WriteLine("The found octree node: " + node.center.ToString());
+
+            //    if (node != null)
+            //    {
+            //        for (int i = 0; i < 8; i++)
+            //        {
+            //            int[] cornerIndex = new int[3];
+            //            for (int j = 0; j < 3; j++)
+            //            {
+            //                cornerIndex[j] = (node.index[j] + cornerDir[i, j]) << (maxLevel - node.level);
+            //                System.Diagnostics.Debug.WriteLine("cornerIndex[" + j + "] = (" + node.index[j] + " + " + cornerDir[i,j] + " << " + maxLevel + " - " + node.level + ") = " + cornerIndex[j]);
+            //            }
+            //            Node n = GetNodeFromDict(cornerIndex, cornerGraphDictionary);
+            //            System.Diagnostics.Debug.WriteLine("The bounding graph node: " + n.center.ToString());
+            //            result.Add(n);
+            //        }
+            //    }
+            //    else throw new Exception("The source node is null.");
+            //    return result;
+            //}
+
+            public List<Node> FindBoundingCrossedGraphNodes(Vector3 position)
         {
             List<Node> result = new List<Node>();
             OctreeNode node = Find(position);
@@ -657,6 +879,37 @@ namespace DvD_Dev
             return res.ToList();
         }
 
+        public List<OctreeNode> DisplayOctreeNodes(ref GraphicsOverlay overlay)
+        {
+            int printNodes = 60000;
+            HashSet<OctreeNode> res = new HashSet<OctreeNode>();
+            Queue<OctreeNode> q = new Queue<OctreeNode>();
+            q.Enqueue(root);
+
+            while (q.Count > 0)
+            {
+                OctreeNode curr = q.Dequeue();
+                res.Add(curr);
+                if (printNodes >= 0)
+                {
+                    Vector3 center = curr.center;
+                    MapPoint point = new MapPoint(center.X * 10, center.Y * 10, center.Z * 10, PathFinder.spatialRef);
+                    Graphic graphicWithSymbol;
+                    if (curr.blocked)
+                        graphicWithSymbol = new Graphic(point, blockedNodeSymbol);
+                    else
+                        graphicWithSymbol = new Graphic(point, nodeSymbol);
+                    overlay.Graphics.Add(graphicWithSymbol);
+
+                    printNodes--;
+                }
+
+                if (curr.children != null)
+                    foreach (OctreeNode child in curr.children) q.Enqueue(child);
+            }
+            return res.ToList();
+        }
+
     }
     class OctreeNode
     {
@@ -665,6 +918,7 @@ namespace DvD_Dev
         public int[] index;
         public OctreeNode parent;
         public OctreeNode[,,] children;
+        public bool visited = false;
         public bool blocked = false;
         public bool containsBlocked = false;
 
@@ -723,7 +977,7 @@ namespace DvD_Dev
             float r = size / 2 - tolerance;
             p1 -= c;
             p2 -= c;
-     
+
             float xm, xp, ym, yp, zm, zp;
             xm = MathF.Min(p1.X, p2.X);
             xp = MathF.Max(p1.X, p2.X);
