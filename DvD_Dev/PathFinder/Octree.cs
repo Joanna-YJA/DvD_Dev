@@ -16,6 +16,7 @@ namespace DvD_Dev
         public int maxLevel;
         public Vector3 corner;
         public float size;
+        public float normalExpansion;
         public float cellSize
         {
             get { return size / (1 << maxLevel); }
@@ -51,6 +52,7 @@ namespace DvD_Dev
 
         public void BuildFromMeshes(List<Mesh> meshes, float normalExpansion = 0)
         {
+            normalExpansion = normalExpansion;
             for (int i = 0; i < meshes.Count; i++)
             {
                 int[] triangles = meshes[i].triangles;
@@ -70,6 +72,7 @@ namespace DvD_Dev
         {
             p -= corner;
             float d = cellSize;
+            System.Diagnostics.Debug.WriteLine("Position to index p.Z " + p.Z + " d " + d);
             return new int[] { (int)MathF.Floor(p.X / d), (int)MathF.Floor(p.Y / d), (int)MathF.Floor(p.Z / d) };
         }
         public Vector3 IndexToPosition(int[] gridIndex)
@@ -105,7 +108,12 @@ namespace DvD_Dev
             int yi = gridIndex[1];
             int zi = gridIndex[2];
             int t = 1 << level;
-            if (xi >= t || xi < 0 || yi >= t || yi < 0 || zi >= t || zi < 0) return null;
+            if (xi >= t || xi < 0 || yi >= t || yi < 0 || zi >= t || zi < 0)
+            {
+                System.Diagnostics.Debug.WriteLine("found node is null xi " + xi + " yi " + yi + " zi " + zi + " t " + t);
+                return null;
+            }
+
 
             OctreeNode current = root;
             for (int l = 0; l < level; l++)
@@ -547,6 +555,7 @@ namespace DvD_Dev
                 dict.Add(key, result);
                 nodes.Add(result);
             }
+            if(result == null) System.Diagnostics.Debug.WriteLine("GetNodeFromDict:  result is null");
             return result;
         }
         private long GetNodeKey(int[] index)
@@ -625,6 +634,7 @@ namespace DvD_Dev
 
         public List<Node> FindBoundingCornerGraphNodes(Vector3 position)
         {
+            System.Diagnostics.Debug.WriteLine("findboundingcornergraphnodes(" + position + ")");
             List<Node> result = new List<Node>();
             OctreeNode node = Find(position);
             if (node != null)
@@ -639,11 +649,17 @@ namespace DvD_Dev
                     result.Add(GetNodeFromDict(cornerIndex, cornerGraphDictionary));
                 }
             }
-            else throw new Exception("The source node is null.");
+            else
+            {
+                // throw new Exception("The source node is null.");
+                System.Diagnostics.Debug.WriteLine("source node is null");
+                return new List<Node>();
+            }
             return result;
         }
 
         //public List<Vector3> OctreeBfs(Vector3 position)
+        //public List<Vector3> OctreeBfs(Vector3 position
         //{
         //    System.Diagnostics.Debug.WriteLine("Original pos is " + position);
         //    Vector3[] arr = new Vector3[] {new Vector3(10, 0, 0), new Vector3(-10, 0, 0),
@@ -723,6 +739,70 @@ namespace DvD_Dev
         
         }
 
+        public float FindMinUnBlockedHeight(Vector3 p)
+        {
+            Vector3 prevCenter = Vector3.Zero, nextCenter = p;
+            Node nextNode = null, lastBlockedNode = null;
+            List<Node> nextNeighbors =  null;
+            float h = 0;
+
+            while ((nextCenter.Z - prevCenter.Z) > 0.001)
+            {
+                //System.Diagnostics.Debug.WriteLine("nextCenter: " + nextCenter + " prevCenter: " + prevCenter);
+                if(nextNeighbors == null) nextNeighbors = FindBoundingCornerGraphNodes(nextCenter);
+                else
+                {
+                    nextNeighbors = new List<Node>();
+                    foreach (Arc a in nextNode.arcs)
+                        nextNeighbors.Add(a.to);
+                    //System.Diagnostics.Debug.WriteLine("#nextNeigghbors: " + nextNeighbors.Count);
+                }
+
+                bool isHigherLevel = false;
+                foreach (Node n in nextNeighbors)
+                {
+                    //System.Diagnostics.Debug.WriteLine("in here...");
+                    if (n == null) continue;
+
+                    if ((n.center.Z - nextCenter.Z) > 0.0001)
+                    {
+                        isHigherLevel = true;
+                        prevCenter = nextCenter;
+                        nextCenter = n.center;
+                        nextNode = n;
+                        if (IsBlocked(PositionToIndex(nextCenter), false, false)) lastBlockedNode = nextNode;
+                        break;
+                    }
+                }
+
+                if (!isHigherLevel) break;
+            }
+
+            if (lastBlockedNode == null) return p.Z;
+            //System.Diagnostics.Debug.WriteLine("Last blocked node is " + lastBlockedNode.center);
+            Vector3 aboveBlocked = lastBlockedNode.center;
+            System.Diagnostics.Debug.WriteLine("Normal expansion: " + normalExpansion);
+            aboveBlocked.Z += normalExpansion + 0.8f;
+            System.Diagnostics.Debug.WriteLine("next line calls find bounding corner wtih aboveBlocked " + aboveBlocked + " lastBlockedNode " + lastBlockedNode);
+            List<Node> bounding = FindBoundingCornerGraphNodes(aboveBlocked);
+            float minH = Single.MaxValue;
+            foreach(Node n in bounding)
+            {
+                if (n == null)
+                {
+                    MapPoint abovePoint = new MapPoint(aboveBlocked.X * 10, aboveBlocked.Y * 10, aboveBlocked.Z * 10, PathFinder.spatialRef);
+                    Graphic aboveGraphic = new Graphic(abovePoint, new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.Diamond, Color.DarkGoldenrod, 30));
+                    PathFinder.pathOverlay.Graphics.Add(aboveGraphic);
+                    System.Diagnostics.Debug.WriteLine("Returned because n is null, p.Z " + p.Z + " above blocked " + aboveBlocked + " grid index of aboveBlocked " + String.Join(", ", PositionToIndex(aboveBlocked)));
+                    return minH;
+                }
+                //System.Diagnostics.Debug.WriteLine("bounding node: " + n.center);
+                if ((n.center.Z - aboveBlocked.Z) <= 0.001) continue;
+                else minH = Math.Min(minH, n.center.Z);
+            }
+            return minH;
+           
+        }
         public void ConvertMapPointToCell(MapPoint p, out int row, out int col)
         {
             Vector3 local = new Vector3((float) p.X / 10, (float)p.Y / 10f, (float)p.Z / 10f);

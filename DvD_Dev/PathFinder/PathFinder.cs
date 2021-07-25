@@ -29,14 +29,16 @@ namespace DvD_Dev
 {
     class PathFinder
     {
-        World shipWorld;
+        public World shipWorld;
         Commanding command;
         SpaceUnit racingDrone;
         FootprintCalculator footprintCalc;
         public static SpatialReference spatialRef;
 
         SceneView sceneView;
-        GraphicsOverlay pathOverlay, meshOverlay, octreeOverlay, graphOverlay;
+        public static GraphicsOverlay pathOverlay;
+        GraphicsOverlay meshOverlay, octreeOverlay, graphOverlay;
+
         static ClassBreaksRenderer renderer;
         static LabelDefinition heightLabelDef;
 
@@ -56,6 +58,9 @@ namespace DvD_Dev
 
         bool isDisplayPath = false, isDisplayCoverage = false;
 
+        static SimpleLineSymbol boxOutlineSymbol = new SimpleLineSymbol(SimpleLineSymbolStyle.Dash, Color.Gray, 2);
+        static SimpleMarkerSymbol centerPointSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.Cross, Color.Gray, 10);
+
         static PathFinder()
         {
             InitializeRenderer();
@@ -66,11 +71,11 @@ namespace DvD_Dev
         {
             // Define the colors that will be used by the unique value renderer.
             Color gray = Color.FromArgb(255, 153, 153, 153);
-            Color blue1 = Color.FromArgb(255, 227, 235, 207);
-            Color blue2 = Color.FromArgb(255, 150, 194, 191);
-            Color blue3 = Color.FromArgb(255, 97, 166, 181);
-            Color blue4 = Color.FromArgb(255, 69, 125, 150);
-            Color blue5 = Color.FromArgb(255, 41, 84, 120);
+            Color blue1 = Color.FromArgb(255, 183, 240, 233);
+            Color blue2 = Color.FromArgb(255, 142, 233, 221);
+            Color blue3 = Color.FromArgb(255, 101, 232, 215);
+            Color blue4 = Color.FromArgb(255, 59, 217, 196);
+            Color blue5 = Color.FromArgb(255, 45, 202, 182);
 
             // Create a gray outline and five fill symbols with different shades of blue.
             SimpleLineSymbol outlineSimpleLineSymbol = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, gray, 1);
@@ -83,11 +88,11 @@ namespace DvD_Dev
             // Create a list of five class breaks for different population ranges.
             List<ClassBreak> listClassBreaks = new List<ClassBreak>
             {
-                new ClassBreak("Buildings with height below 40m", "0 - 40", 0, 40, simpleFileSymbol1),
-                new ClassBreak("Buildings with height from 41m to 80m", "40 - 80", 40, 80, simpleFileSymbol2),
-                new ClassBreak("Buildings with height from 81m to 120m", "81 - 120", 80, 120, simpleFileSymbol3),
-                new ClassBreak("Buildings with height above 121m", ">120", 120, Int32.MaxValue, simpleFileSymbol4),
-               // new ClassBreak("> 86,100 to 10,110,975", "> 86,100 to 10,110,975", 86100, 10110975, simpleFileSymbol5)
+                new ClassBreak("Buildings with height below 10m", "0 - 10", 0, 10, simpleFileSymbol1),
+                new ClassBreak("Buildings with height from 10m to 20m", "10 - 20", 10, 20, simpleFileSymbol2),
+                new ClassBreak("Buildings with height from 20m to 30m", "20 - 30", 20, 30, simpleFileSymbol3),
+                new ClassBreak("Buildings with height from 30m to 40m", "30 - 40", 30, 40, simpleFileSymbol4),
+                new ClassBreak("Buildings with height above 40m", "> 40", 40, int.MaxValue, simpleFileSymbol5)
             };
 
             // Create and return the a class break renderer for use with the POP2007 field in the counties sub-layer.
@@ -124,10 +129,9 @@ namespace DvD_Dev
             pathOverlay.SceneProperties.SurfacePlacement = SurfacePlacement.Absolute;
             sceneView.GraphicsOverlays.Add(pathOverlay);
         }
-        public async Task InitPathFinder()
+        public async Task InitPathFinder(MapPoint center)
         {
-            await ReadInput();
-            LoadScene(meshes, centerOfMap, octreeLevel, shipSize);
+            LoadScene(meshes, center, octreeLevel, shipSize);
             LinkShip();
         }
 
@@ -234,29 +238,46 @@ namespace DvD_Dev
         }
 
         // Construct an Octree from the loaded scene
-        public void LoadScene(List<Mesh> meshes, Vector3 centerCoords, int octreeLevels, float shipSize)
+        public void LoadScene(List<Mesh> meshes, MapPoint center, int octreeLevels, float shipSize)
         {
             racingDrone = new SpaceUnit();
             float ext = MathF.Max(shipSize - 16f / (1 << 8) * MathF.Sqrt(3) / 2, 0);
             racingDrone.ext = ext;
 
-            Coordinate testCoord = new CoordinateZ(11557028.5197362 / 10, 150832.223844404 / 10, 0);
-            Vector3 testCenter = new Vector3(Convert.ToSingle(testCoord.X), Convert.ToSingle(testCoord.Y), Convert.ToSingle(testCoord.Z));
-            shipWorld = new World(ref sceneView, meshes, dimensions, testCenter, octreeLevels, 0.5f, true, Graph.GraphType.CORNER);
+            Vector3 centerMap = new Vector3((float) center.X/10, (float) center.Y/10, (float) center.Z/10);
+            System.Diagnostics.Debug.WriteLine("center of map " + centerMap);
+            // Coordinate testCord =  new CoordinateZ(11557028.5197362 / 10, 150832.223844404 / 10, 0);
+
+            shipWorld = new World(ref sceneView, meshes, dimensions, centerMap, octreeLevels, 0.5f, true, Graph.GraphType.CORNER);
 
             command = new Commanding(ref sceneView, shipWorld);
         }
 
         public void TravelAndSearch(MapPoint[] sourceDest)
         {
-            points = new List<MapPoint>();
             Vector3 localSrc = Vector3.Zero, localDest = Vector3.Zero;
             ConvertToLocal(sourceDest, ref localSrc, ref localDest);
-            command.ConvertToAvailPoints(ref localSrc, ref localDest);
+           // command.ConvertToAvailPoints(ref localSrc, ref localDest);
             System.Diagnostics.Debug.WriteLine("Final changed dest " + localDest);
-            MoveToCoords(localSrc, localDest);
-            SearchInSpiral(localDest);
 
+            double timeLimitMin = 30, avrSpeedMph = 31;
+            double targetDistM = (timeLimitMin/60) * (avrSpeedMph * 1609.34);
+            double distanceM = double.MaxValue, altitudeM = 20;
+
+            while (distanceM > targetDistM)
+            {
+                System.Diagnostics.Debug.WriteLine("Actual distance > target Dist with altitude " + altitudeM + " distance " + distanceM + " target dist " + targetDistM);
+                FootprintCalculator fpCalc = new FootprintCalculator(++altitudeM);
+                points = new List<MapPoint>();
+                SearchInSpiral(localDest, fpCalc);
+
+                Vector3 localStart = new Vector3((float) points[0].X / 10, (float) points[0].Y / 10f, (float) points[0].Z / 10f);
+               // MoveToCoords(localSrc, localStart);
+                Polyline path = new Polyline(points);
+                ArcGisGeometry densifiedPath = GeometryEngine.DensifyGeodetic(path, 1, LinearUnits.Meters, GeodeticCurveType.Geodesic);
+                distanceM = GeometryEngine.LengthGeodetic(densifiedPath, LinearUnits.Meters, GeodeticCurveType.Geodesic);
+            }
+            System.Diagnostics.Debug.WriteLine("Actual distance < target Dist with altitude " + altitudeM + " distance " + distanceM + " target dist " + targetDistM);
             if (isDisplayPath) command.ShowPath(ref points, pathOverlay);
             if (isDisplayCoverage)
             {
@@ -269,15 +290,33 @@ namespace DvD_Dev
         public async void WriteToKml()
         {
             KmlDocument kmlDoc = new KmlDocument() { Name = "KML Drone Path" };
+            KmlFolder kmlFolder = new KmlFolder();
             foreach (MapPoint p in points)
             {
                 if (p == null) continue;
                 ArcGisGeometry geom = (ArcGisGeometry)p;
                 ArcGisGeometry projectedGeom = GeometryEngine.Project(geom, SpatialReferences.Wgs84);
-                KmlGeometry kmlGeom = new KmlGeometry(projectedGeom, KmlAltitudeMode.ClampToGround);
+                KmlGeometry kmlGeom = new KmlGeometry(projectedGeom, KmlAltitudeMode.RelativeToGround);
                 KmlPlacemark placemark = new KmlPlacemark(kmlGeom);
 
-                kmlDoc.ChildNodes.Add(placemark);
+                kmlFolder.ChildNodes.Add(placemark);
+            }
+
+            kmlDoc.ChildNodes.Add(kmlFolder);
+
+            List<MapPoint> nonNullPoints = new List<MapPoint>();
+            foreach (MapPoint p in points)
+                if (p != null) nonNullPoints.Add(p);
+
+            for(int i = 0; i < nonNullPoints.Count; i += 99)
+            {
+                ArcGisGeometry line = (ArcGisGeometry)new Polyline(
+                                        nonNullPoints.GetRange(i, Math.Min(nonNullPoints.Count - i, 99)));
+                ArcGisGeometry projectedLine = GeometryEngine.Project(line, SpatialReferences.Wgs84);
+                KmlGeometry kmlLine = new KmlGeometry(projectedLine, KmlAltitudeMode.RelativeToGround);
+                KmlPlacemark placemarkLine = new KmlPlacemark(kmlLine);
+                kmlDoc.ChildNodes.Add(placemarkLine);
+
             }
 
             FileSavePicker savePicker = new FileSavePicker();
@@ -308,13 +347,13 @@ namespace DvD_Dev
             float srcX = Convert.ToSingle(sourceDest[0].X) / 10,
                  srcY = Convert.ToSingle(sourceDest[0].Y) / 10,
                  //srcZ = Convert.ToSingle(sourceDest[0].Z) / 10;
-                 srcZ = 25f / 10;
+                 srcZ = 20f / 10;
             localSrc = new Vector3(srcX, srcY, srcZ);
 
             float destX = Convert.ToSingle(sourceDest[1].X) / 10,
                 destY = Convert.ToSingle(sourceDest[1].Y) / 10,
                  // destZ = Convert.ToSingle(sourceDest[1].Z) / 10;
-                 destZ = 25f / 10;
+                 destZ = 20f / 10;
             localDest = new Vector3(destX, destY, destZ);
         }
 
@@ -325,9 +364,9 @@ namespace DvD_Dev
             command.MoveOrder(localDest, ref points);
         }
 
-        public void SearchInSpiral(Vector3 localDest)
+        public void SearchInSpiral(Vector3 localDest, FootprintCalculator fpCalc)
         {
-            command.SearchInSpiral(ref points, localDest);
+            command.SearchInSpiral(ref points, localDest, fpCalc);
         }
 
         public static List<float> ConvertLocalToLatLon(float x, float z)
@@ -417,6 +456,80 @@ namespace DvD_Dev
         public void DisplayPath()
         {
             isDisplayPath = true;
+        }
+
+        public void DisplayBothBoundingBox(int dimensionM)
+        {
+            DisplayOctreeBoundingBox();
+            DisplayDimensionBoundingBox(dimensionM);
+        }
+        public void DisplayOctreeBoundingBox()
+        {
+            List<MapPoint> corners = new List<MapPoint>();
+            Vector3 center = shipWorld.space.root.center;
+            float r = shipWorld.space.size / 2;
+
+            MapPoint centerPoint = new MapPoint(center.X * 10f, center.Y * 10f, center.Z * 10f, spatialRef);
+            Graphic centerGraphic = new Graphic(centerPoint, centerPointSymbol);
+
+            for(int i = 0; i < 4; i++)
+            {
+                int signY = i < 2 ? 1: -1;
+                int signX = (i == 1 || i == 2)? -1 : 1;
+                corners.Add(new MapPoint((center.X + (r * signX)) * 10f, 
+                                          (center.Y + (r * signY)) * 10f, 
+                                          center.Z * 10f, spatialRef));
+            }
+            corners.Add(corners[0]);
+
+            ArcGisGeometry box = new Polyline(corners);
+            Graphic boxGraphic = new Graphic(box, boxOutlineSymbol);
+
+            if (octreeOverlay == null)
+            {
+                octreeOverlay = new GraphicsOverlay();
+                octreeOverlay.SceneProperties.SurfacePlacement = SurfacePlacement.Absolute;
+                sceneView.GraphicsOverlays.Add(octreeOverlay);
+            }
+
+            octreeOverlay.Graphics.Add(boxGraphic);
+            octreeOverlay.Graphics.Add(centerGraphic);
+        }
+
+        public void DisplayDimensionBoundingBox(int dimensionM)
+        {
+            List<MapPoint> corners = new List<MapPoint>();
+            Vector3 center = shipWorld.space.root.center;
+            float origR = shipWorld.space.size / 2;
+            float r = (dimensionM / 10) / 2; //Check for user error
+            if ((r - origR) > 0.001)
+                throw new ArgumentOutOfRangeException("The dimensions of the field cannot be greater than the size of octree");
+
+            MapPoint centerPoint = new MapPoint(center.X * 10f, center.Y * 10f, center.Z * 10f, spatialRef);
+            Graphic centerGraphic = new Graphic(centerPoint, centerPointSymbol);
+
+            for (int i = 0; i < 4; i++)
+            {
+                int signY = i < 2 ? 1 : -1;
+                int signX = (i == 1 || i == 2) ? -1 : 1;
+                corners.Add(new MapPoint((center.X + (r * signX)) * 10f,
+                                          (center.Y + (r * signY)) * 10f,
+                                          center.Z * 10f, spatialRef));
+            }
+            corners.Add(corners[0]);
+
+            ArcGisGeometry box = new Polyline(corners);
+            Graphic boxGraphic = new Graphic(box, boxOutlineSymbol);
+
+            if (octreeOverlay == null)
+            {
+                octreeOverlay = new GraphicsOverlay();
+                octreeOverlay.SceneProperties.SurfacePlacement = SurfacePlacement.Absolute;
+                sceneView.GraphicsOverlays.Add(octreeOverlay);
+            }
+
+            octreeOverlay.Graphics.Add(boxGraphic);
+            octreeOverlay.Graphics.Add(centerGraphic);
         }
 
         public void DisplayFootprintCoverage()

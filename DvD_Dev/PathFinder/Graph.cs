@@ -92,7 +92,7 @@ namespace DvD_Dev
             Style = SimpleMarkerSymbolStyle.Triangle
         };
 
-        static SimpleLineSymbol arcSymbol = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Yellow, 1.0);
+        static SimpleLineSymbol arcSymbol = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.DarkKhaki, 1.0);
 
         public Graph()
         {
@@ -686,8 +686,10 @@ namespace DvD_Dev
 
         public void DisplayGraphNodes(ref GraphicsOverlay overlay, Octree space)
         {
+            System.Diagnostics.Debug.WriteLine("# graph nodes " + nodes.Count);
             for (int i = 0; i < 20000; i++)
             {
+                if (i >= nodes.Count) return;
                 Vector3 center = this.nodes[i].center;
                 MapPoint point = new MapPoint(center.X * 10, center.Y * 10, center.Z * 10, PathFinder.spatialRef);
                 Graphic node;

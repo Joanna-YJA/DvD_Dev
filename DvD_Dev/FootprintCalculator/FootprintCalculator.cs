@@ -48,6 +48,18 @@ namespace DvD_Dev
             FindFootprintDimensions();
         }
 
+        public FootprintCalculator(double altitudeM)
+        {
+            this.altitudeM = altitudeM;
+            yawRad = LimitToRange(yawRad, -80, 80);
+            pitchRad = LimitToRange(pitchRad, -80, 80);
+
+            HFVRad = FindHFV();
+            VFVRad = FindVFV();
+
+            FindFootprintDimensions();
+        }
+
         private static double LimitToRange(double value, double incMin, double incMax)
         {
             if (value < incMin) return incMin;

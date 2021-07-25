@@ -45,9 +45,7 @@ namespace DvD_Dev
         private readonly List<(string Tag, Type Page)> _pages = new List<(string Tag, Type Page)>
 {
       //TODO: Create respective pages
-    ("home", typeof(HomePage)),
-    ("drone_camera", typeof(DroneCameraPage)),
-    ("map", typeof(MapPage)),
+    ("map", typeof(MapPage))
 };
 
         private void NavView_Loaded(object sender, RoutedEventArgs e)
@@ -55,7 +53,7 @@ namespace DvD_Dev
             ContentFrame.Navigated += On_Navigated;
  
             NavView.SelectedItem = NavView.MenuItems[0];
-            NavView_Navigate("home", new Windows.UI.Xaml.Media.Animation.EntranceNavigationTransitionInfo());
+            NavView_Navigate("map", new Windows.UI.Xaml.Media.Animation.EntranceNavigationTransitionInfo());
 
             Window.Current.CoreWindow.Dispatcher.AcceleratorKeyActivated +=
                 CoreDispatcher_AcceleratorKeyActivated;

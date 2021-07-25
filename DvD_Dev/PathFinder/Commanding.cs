@@ -68,7 +68,7 @@ namespace DvD_Dev
             {
                 List<List<Node>> allWayPoints = spaceGraph.FindPath(spaceGraph.LazyThetaStar, target, pathFindingDest, space);
                 //allWayPoints.Add(null);
-                AddMapPoints(ref points, allWayPoints[0]);
+                AddFrontMapPoints(ref points, allWayPoints[0]);
 
                 //foreach (Node n in allWayPoints[0])
                 //    System.Diagnostics.Debug.WriteLine("VECTOR3 in path from source to dest: " + n.center);
@@ -123,176 +123,79 @@ namespace DvD_Dev
             //    dest += dir;
             //}
 
-           // sourceDestLocal[1] = dest;
+            // sourceDestLocal[1] = dest;
         }
 
-        public void SearchInSpiral(ref List<MapPoint> points, Vector3 dest)
+        public void SearchInSpiral(ref List<MapPoint> points, Vector3 dest, FootprintCalculator fpCalc)
         {
-            FootprintCalculator footprintCalc = new FootprintCalculator();
             List<Vector3> path = new List<Vector3>();
 
-            // path.Add(dest);
+            System.Diagnostics.Debug.WriteLine("first point in spiral: " + dest);
             Vector3 prev = dest;
+            path.Add(prev);
+            float origHeight = prev.Z;
 
-            float localhalfHeight = footprintCalc.getHalfHeight() / 10, localHalfBase = footprintCalc.getHalfBase() / 10;
+            float localhalfHeight = fpCalc.getHalfHeight() / 10, localHalfBase = fpCalc.getHalfBase() / 10;
             float incrY = localhalfHeight + localHalfBase, incrX = localHalfBase * 2;
+
 
             Vector3 backFront, side;
             int sign = 1;
 
-            for (int i = 0; i < 200; i++)
+            for (int i = 0; i < 80; i++)
             {
-                backFront = new Vector3(prev.X, prev.Y + (sign * incrY), prev.Z);
-                if (!space.CheckWithinBounds(backFront))
+                backFront = new Vector3(prev.X, prev.Y + (sign * incrY), origHeight);
+                if (!space.CheckWithinBounds(backFront, 20))
                 {
                     System.Diagnostics.Debug.WriteLine("Check within bounds of backfront fails, backfront " + backFront);
                     AddMapPoints(ref points, path);
                     return;
                 }
-                int dirChange = 0;
-                bool isFirst = true;
-                while (!space.LineOfSight(prev, backFront, false, false))
+
+                if (!space.LineOfSight(prev, backFront, false, false))
                 {
-                    System.Diagnostics.Debug.WriteLine("there is no LOS between prev and backFront");
-                    try
-                    {
-                        if (!space.CheckWithinBounds(backFront))
-                        {
-                            System.Diagnostics.Debug.WriteLine("Check within bounds of backfront fails, backfront " + backFront);
-                            AddMapPoints(ref points, path);
-                            return;
-                        }
-                        List<Node> tempPath = spaceGraph.FindPath(spaceGraph.LazyThetaStar, backFront, prev, space);
-
-                        bool isValidPath = true;
-                        Node prevNode = null;
-                        float maxZ = 0;
-                        foreach (Node n in tempPath)
-                        {
-                            if (isValidPath && prevNode != null && !space.LineOfSight(prevNode.center, n.center, false, false))
-                            {
-                                isValidPath = false;
-                                System.Diagnostics.Debug.WriteLine("3d path is not valid as 2 of the points has no LOS");
-                                //break;
-                            }
-                            prevNode = n;
-                            maxZ = Math.Max(n.center.Z, maxZ);
-                        }
-                        System.Diagnostics.Debug.Write("backFront.Z changed from " + backFront.Z + " to ");
-                        backFront.Z = maxZ;
-                        System.Diagnostics.Debug.Write(backFront.Z + "\n");
-
-                        if (isValidPath)
-                        {
-                            tempPath = spaceGraph.FindPath(spaceGraph.LazyThetaStar, backFront, prev, space);
-                            for (int k = tempPath.Count - 2; k > 0; k--)
-                                path.Add(tempPath[k].center);
-                            //foreach (Node n in tempPath)
-                            //    path.Add(n.center);
-                            break;
-                        }
-
-                        if(!isFirst) backFront.Y += (sign * 0.5f);
-                        isFirst = false;
-                        System.Diagnostics.Debug.WriteLine("Y changed by 0.5");
-                    }
-                    catch (Exception e)
-                    {
-                        //sign *= -1;
-                        //dirChange++;
-                        //if (dirChange > 1)
-                        //{
-                        AddMapPoints(ref points, path);
-                        System.Diagnostics.Debug.WriteLine("Returned because of Y incr/decr");
-                        return;
-                        //}
-                    }
-                }
-                path.Add(backFront);
-                path.Add(Vector3.Zero);
+                    float height = space.FindMinUnBlockedHeight(backFront);//3.90625f;
+                    System.Diagnostics.Debug.WriteLine("Min unblocked height of backfront " + height); 
+                    backFront.Z = height;
+                    List<Node> sectionPath = spaceGraph.FindPath(spaceGraph.LazyThetaStar, prev, backFront, space);
+                    //test, uncomment later
+                    //foreach (Node n in sectionPath.GetRange(1, sectionPath.Count - 2))
+                    //    path.Add(n.center);
+                } else path.Add(backFront);
 
                 prev = backFront;
+
                 incrY += localHalfBase;
                 if (i > 0) incrY += localHalfBase;
                 else incrY += localhalfHeight;
 
-                if(true)
+                side = new Vector3(prev.X + (sign * incrX), prev.Y, origHeight);
+                if (!space.CheckWithinBounds(side, 20))
                 {
-                    side = new Vector3(prev.X + (sign * incrX), prev.Y, prev.Z);
-                    if (!space.CheckWithinBounds(side))
-                    {
-                        System.Diagnostics.Debug.WriteLine("Check within bounds of side fails, side " + side);
-                        AddMapPoints(ref points, path);
-                        return;
-                    }
-                    dirChange = 0;
-                    isFirst = true;
-                    while (!space.LineOfSight(prev, side, false, false))
-                    {
-                        System.Diagnostics.Debug.WriteLine("there is no LOS between prev and side");
-                        try
-                        {
-                            if (!space.CheckWithinBounds(side))
-                            {
-                                System.Diagnostics.Debug.WriteLine("Check within bounds of side fails, side " + side);
-                                AddMapPoints(ref points, path);
-                                return;
-                            }
-                            List<Node> tempPath = spaceGraph.FindPath(spaceGraph.LazyThetaStar, side, prev, space);
-
-                            bool isValidPath = true;
-                            Node prevNode = null;
-                            float maxZ = 0;
-                            foreach (Node n in tempPath)
-                            {
-                                if (isValidPath && prevNode != null && !space.LineOfSight(prevNode.center, n.center, false, false))
-                                {
-                                    isValidPath = false;
-                                    System.Diagnostics.Debug.WriteLine("3d path is not valid as 2 of the points has no LOS");
-                                    //break;
-                                }
-                                prevNode = n;
-                                maxZ = Math.Max(n.center.Z, maxZ);
-                            }
-                            System.Diagnostics.Debug.Write("side.Z changed from " + side.Z + " to ");
-                            if(!isFirst) side.Z = maxZ;
-                            isFirst = false;
-
-                            System.Diagnostics.Debug.Write(side.Z + "\n");
-
-                            if (isValidPath)
-                            {
-                                tempPath = spaceGraph.FindPath(spaceGraph.LazyThetaStar, side, prev, space);
-                                for (int k = tempPath.Count - 2; k > 0; k--)
-                                    path.Add(tempPath[k].center);
-                                //foreach (Node n in tempPath)
-                                //    path.Add(n.center);
-                                break;
-                            }              
-                            side.X += (sign * 0.5f);
-                            System.Diagnostics.Debug.WriteLine("X changed by 0.5");
-                        }
-                        catch (Exception e)
-                        {
-                            //sign *= -1;
-                            //dirChange++;
-                            //if (dirChange > 1)
-                            //{
-                            AddMapPoints(ref points, path);
-                            System.Diagnostics.Debug.WriteLine("Returned because of X incr/decr");
-                            return;
-                            //}
-
-                        }
-                    }
-                    path.Add(side);
-                    path.Add(Vector3.Zero);
-
-                    prev = side;
-                    incrX += localHalfBase + localHalfBase;
-                    sign *= -1;
+                    System.Diagnostics.Debug.WriteLine("Check within bounds of side fails, side " + side);
+                    AddMapPoints(ref points, path);
+                    return;
                 }
+
+                if (!space.LineOfSight(prev, side, false, false))
+                {
+                    float height = space.FindMinUnBlockedHeight(side);
+                    System.Diagnostics.Debug.WriteLine("Min unblocked height of side " + height);
+                   
+                    side.Z = height;
+                    List<Node> sectionPath = spaceGraph.FindPath(spaceGraph.LazyThetaStar, prev, side, space);
+                    //test, uncomment later
+                    //foreach (Node n in sectionPath.GetRange(1, sectionPath.Count - 2))
+                    //    path.Add(n.center);
+                   // path.Add(Vector3.Zero);
+                } else path.Add(side);
+
+                prev = side;
+
+                incrX += localHalfBase + localHalfBase;
+                sign *= -1;
             }
+            spaceGraph.RemoveTemporaryNodes();
             AddMapPoints(ref points, path);
         }
 
@@ -301,11 +204,12 @@ namespace DvD_Dev
             //if(points.Count > 0) System.Diagnostics.Debug.WriteLine("the pos of drone: " + points[points.Count - 1].ToString());
             //System.Diagnostics.Debug.Write("Move to coords is called, path points: ");
             foreach (Vector3 v in sectionPoints)
+           // for(int i = sectionPoints.Count - 1; i >= 0; i--)
             {
-                Vector3 c = v * 10;
+                Vector3 c = v * 10; // sectionPoints[i] * 10;
                 MapPoint p = new MapPoint(c.X, c.Y, c.Z, PathFinder.spatialRef);
                 //points.Add(p);
-               
+
                 if (Math.Abs(c.X) < 0.001 && Math.Abs(c.Y) < 0.001 && Math.Abs(c.Z) < 0.001)
                 {
                     points.Add(null);
@@ -324,43 +228,71 @@ namespace DvD_Dev
             //System.Diagnostics.Debug.Write("Move to coords is called, path points: ");
             for (int i = sectionPoints.Count - 1; i >= 0; i--)
             {
-                if(sectionPoints[i] == null)
+                if (sectionPoints[i] == null)
                 {
                     points.Add(null);
                     continue;
                 }
                 Vector3 c = sectionPoints[i].center * 10;
                 MapPoint p = new MapPoint(c.X, c.Y, c.Z, PathFinder.spatialRef);
-               // System.Diagnostics.Debug.WriteLine("c: " + c);
-                 points.Add(p);
+                // System.Diagnostics.Debug.WriteLine("c: " + c);
+                points.Add(p);
                 // System.Diagnostics.Debug.WriteLine("each of the map point p in move order: " + p);
                 //System.Diagnostics.Debug.WriteLine(p.ToString() + " ");
             }
             // System.Diagnostics.Debug.Write("\n");
         }
 
+        public void AddFrontMapPoints(ref List<MapPoint> points, List<Node> sectionPoints)
+        {
+            List<MapPoint> front = new List<MapPoint>();
+            //if(points.Count > 0) System.Diagnostics.Debug.WriteLine("the pos of drone: " + points[points.Count - 1].ToString());
+            //System.Diagnostics.Debug.Write("Move to coords is called, path points: ");
+            for(int i = sectionPoints.Count -  1; i >= 0; i--)
+            {
+                Node n = sectionPoints[i];
+                if (n == null)
+                {
+                    front.Add(null);
+                    continue;
+                }
+                Vector3 c = n.center * 10;
+                MapPoint p = new MapPoint(c.X, c.Y, c.Z, PathFinder.spatialRef);
+                // System.Diagnostics.Debug.WriteLine("c: " + c);
+                front.Add(p);
+                // System.Diagnostics.Debug.WriteLine("each of the map point p in move order: " + p);
+                //System.Diagnostics.Debug.WriteLine(p.ToString() + " ");
+            }
+            front.AddRange(points);
+            points = front;
+            // System.Diagnostics.Debug.Write("\n");
+        }
+
         public void ShowPath(ref List<MapPoint> points, GraphicsOverlay overlay)
         {
-            MapPoint prev = null;
             bool useSecond = false;
             for (int i = 0; i < points.Count; i++)
             {
                 //test
                 if (points[i] == null)
                 {
-                    useSecond = !useSecond;
+                    useSecond = true;
                     continue;
-                }
+                } 
 
                 MapPoint p = points[i];
                 //test
                 Graphic pointGraphic;
-                if(useSecond) pointGraphic = new Graphic(p, pathVertexSymbol2);
+                if (useSecond)
+                {
+                    pointGraphic = new Graphic(p, pathVertexSymbol2);
+                    useSecond = false;
+                }
                 else pointGraphic = new Graphic(p, pathVertexSymbol1);
                 overlay.Graphics.Add(pointGraphic);
 
                 TextSymbol labelSymbol = (TextSymbol)textSymbol.Clone();
-                labelSymbol.Text = i.ToString(); //+ " <" + p.X + ", " + p.Y + ", " + p.Z + ">";
+                labelSymbol.Text = i.ToString(); // + " <" + p.X + ", " + p.Y + ", " + p.Z + ">";
 
                 //test
                 //int row, col;
@@ -369,7 +301,7 @@ namespace DvD_Dev
                 Graphic labelGraphic = new Graphic(p, labelSymbol);
                 //System.Diagnostics.Debug.WriteLine("text symbol added..." + labelSymbol.Text);
                 overlay.Graphics.Add(labelGraphic);
-                prev = p;
+               
             }
 
             //test
@@ -377,11 +309,12 @@ namespace DvD_Dev
             //    System.Diagnostics.Debug.WriteLine("Polyline vectors: " + new Vector3((float) p.X / 10, (float)p.Y / 10, (float)p.Z / 10));
             //test
             List<MapPoint> nonNullPoints = new List<MapPoint>();
-            foreach (MapPoint p in points) {
+            foreach (MapPoint p in points)
+            {
                 if (p != null)
                 {
                     nonNullPoints.Add(p);
-                   // System.Diagnostics.Debug.WriteLine("line points: <" + p.X + ", " + p.Y + ", " + p.Z + ">");
+                    // System.Diagnostics.Debug.WriteLine("line points: <" + p.X + ", " + p.Y + ", " + p.Z + ">");
                 }
             }
 

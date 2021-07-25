@@ -51,6 +51,7 @@ namespace DvD_Dev
             MySceneView.SetViewpointCameraAsync(camera);
             MySceneView.Scene = myScene;
             MySceneView.GeoViewTapped += SceneView_Tapped;
+            MySceneView.GeoViewDoubleTapped += SceneView_DoubleTapped;
 
             overlay = new GraphicsOverlay();
             overlay.SceneProperties.SurfacePlacement = SurfacePlacement.Absolute;
@@ -61,23 +62,17 @@ namespace DvD_Dev
         override
         protected async void OnNavigatedTo(NavigationEventArgs e)
         {
-            await pathFinder.InitPathFinder();
+            pathFinder.ReadInput();
 
-            //Show different types of intermediate data structures (for testing/debugging)
-            //Uncomment as neccessary
-            //pathFinder.DisplayMesh();
-            //pathFinder.DisplayMeshNormals();
-            //pathFinder.DisplayOctreeNodes();
-            //pathFinder.DisplayOctreeBlockedNodes();
-            //pathFinder.DisplayGraphNodes();
-            pathFinder.DisplayPath();
-            //pathFinder.DisplayFootprintCoverage();
+            
+
         }
 
         private void SceneView_Tapped(object sender, GeoViewInputEventArgs e)
         {
+            if (pathFinder.shipWorld == null) return;
             MapPoint tappedPoint = (MapPoint)GeometryEngine.NormalizeCentralMeridian(e.Location);
-            tappedPoint = new MapPoint(tappedPoint.X, tappedPoint.Y, 25, tappedPoint.SpatialReference);
+            tappedPoint = new MapPoint(tappedPoint.X, tappedPoint.Y, 20, tappedPoint.SpatialReference);
             MapPoint projectedPoint = (MapPoint)GeometryEngine.Project(tappedPoint, PathFinder.spatialRef);
             Graphic graphicWithSymbol;
 
@@ -95,6 +90,31 @@ namespace DvD_Dev
 
             isEvenClick = !isEvenClick;
             overlay.Graphics.Add(graphicWithSymbol);
+        }
+
+        private async void SceneView_DoubleTapped(object sender, GeoViewInputEventArgs e)
+        {
+            MapPoint tappedPoint = (MapPoint)GeometryEngine.NormalizeCentralMeridian(e.Location);
+            tappedPoint = new MapPoint(tappedPoint.X, tappedPoint.Y, 0, tappedPoint.SpatialReference);
+            MapPoint projectedPoint = (MapPoint)GeometryEngine.Project(tappedPoint, PathFinder.spatialRef);
+
+            MySceneView.Camera.MoveTo(tappedPoint);
+
+
+            System.Diagnostics.Debug.WriteLine("Projected point: <" + projectedPoint.X + ", " + projectedPoint.Y + ", " + projectedPoint.Z + "> with spatial ref " + PathFinder.spatialRef.WkText);
+            await pathFinder.InitPathFinder(projectedPoint);
+
+            //Show different types of intermediate data structures (for testing/debugging)
+            //Uncomment as neccessary
+            //pathFinder.DisplayMesh();
+            //pathFinder.DisplayMeshNormals();
+            //pathFinder.DisplayOctreeNodes();
+            //pathFinder.DisplayOctreeBlockedNodes();
+           pathFinder.DisplayGraphNodes();
+           // pathFinder.DisplayPath();
+            //pathFinder.DisplayFootprintCoverage();
+            pathFinder.DisplayOctreeBoundingBox();
+            pathFinder.DisplayDimensionBoundingBox(200);
         }
     }
 }

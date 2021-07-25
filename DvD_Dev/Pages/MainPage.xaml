@@ -14,20 +14,80 @@
                          ItemInvoked="NavView_ItemInvoked"
                          BackRequested="NavView_BackRequested">
             <muxc:NavigationView.MenuItems>
-                <muxc:NavigationViewItem Tag="home" Icon="Home" Content="Home"/>
+                <muxc:NavigationViewItem Tag="map" Icon="Map" Content="Map"/>
                 <muxc:NavigationViewItemSeparator/>
                 <muxc:NavigationViewItemHeader x:Name="Sections"
-                                           Content="Sectioms"/>
-                <muxc:NavigationViewItem Tag="drone_camera" Content="Drone Camera">
+                                           Content="Sections"/>
+                <!--<muxc:NavigationViewItem Tag="drone_camera" Content="Drone Camera">
                     <muxc:NavigationViewItem.Icon>
-                        <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xEB3C;"/> <!--TODO: Update icons-->
+                        <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xEB3C;"/> -->
+                <!--TODO: Update icons-->
+                <!--
                     </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>-->
+                <muxc:NavigationViewItem Tag="upload_files" Content="Upload Files">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE899;"/>
+                    </muxc:NavigationViewItem.Icon>
+                    <muxc:NavigationViewItem.MenuItems>
+                        <muxc:NavigationViewItem Tag="upload_shapefile" Content="Upload Shapefile">
+                            <muxc:NavigationViewItem.Icon>
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE8E6;"/>
+                            </muxc:NavigationViewItem.Icon>
+                        </muxc:NavigationViewItem>
+                        <muxc:NavigationViewItem Tag="upload_octree_graph" Content="Upload Octree Json">
+                            <muxc:NavigationViewItem.Icon>
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE8E6;"/>
+                            </muxc:NavigationViewItem.Icon>
+                        </muxc:NavigationViewItem>
+                        <muxc:NavigationViewItem Tag="upload_graph_json" Content="Upload Graph_Json">
+                            <muxc:NavigationViewItem.Icon>
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xED5D;"/>
+                            </muxc:NavigationViewItem.Icon>
+                        </muxc:NavigationViewItem>
+                    </muxc:NavigationViewItem.MenuItems>
                 </muxc:NavigationViewItem>
-                <muxc:NavigationViewItem Tag="map" Content="Map">
+                <muxc:NavigationViewItem Tag="display_components" Content="Display Components">
                     <muxc:NavigationViewItem.Icon>
-                        <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE7FC;"/>
-                        <!--TODO: Update icons-->
+                        <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE74C;"/>
                     </muxc:NavigationViewItem.Icon>
+                    <muxc:NavigationViewItem.MenuItems>
+                        <muxc:NavigationViewItem Tag="show_obstacle_mesh" Content="Show Obstacle Mesh">
+                            <muxc:NavigationViewItem.Icon>
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE80A;"/>
+                            </muxc:NavigationViewItem.Icon>
+                        </muxc:NavigationViewItem>
+                        <muxc:NavigationViewItem Tag="show_mesh_normals" Content="Show Mesh Normals">
+                            <muxc:NavigationViewItem.Icon>
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xED65;"/>
+                            </muxc:NavigationViewItem.Icon>
+                        </muxc:NavigationViewItem>
+                        <muxc:NavigationViewItem Tag="show_bounding_box" Content="Show Bounding Box">
+                            <muxc:NavigationViewItem.Icon>
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xF16B;"/>
+                            </muxc:NavigationViewItem.Icon>
+                        </muxc:NavigationViewItem>
+                        <muxc:NavigationViewItem Tag="show_drone_path" Content="Show Drone Path">
+                            <muxc:NavigationViewItem.Icon>
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xEA63;"/>
+                            </muxc:NavigationViewItem.Icon>
+                        </muxc:NavigationViewItem>
+                        <muxc:NavigationViewItem Tag="show_footprint" Content="Show Footprint">
+                            <muxc:NavigationViewItem.Icon>
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xEA64;"/>
+                            </muxc:NavigationViewItem.Icon>
+                        </muxc:NavigationViewItem>
+                        <muxc:NavigationViewItem Tag="show_graph" Content="Show Graph">
+                            <muxc:NavigationViewItem.Icon>
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xED5D;"/>
+                            </muxc:NavigationViewItem.Icon>
+                        </muxc:NavigationViewItem>
+                        <muxc:NavigationViewItem Tag="show_octree_nodes" Content="Show Octree Nodes">
+                            <muxc:NavigationViewItem.Icon>
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE74C;"/>
+                            </muxc:NavigationViewItem.Icon>
+                        </muxc:NavigationViewItem>
+                    </muxc:NavigationViewItem.MenuItems>
                 </muxc:NavigationViewItem>
             </muxc:NavigationView.MenuItems>
 
