@@ -3,10 +3,8 @@ using Esri.ArcGISRuntime.Mapping;
 using Esri.ArcGISRuntime.Symbology;
 using Esri.ArcGISRuntime.UI;
 using Esri.ArcGISRuntime.UI.Controls;
-using System.Collections.Generic;
-using System.Numerics;
+using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Navigation;
 using Colors = System.Drawing.Color;
 
 namespace DvD_Dev
@@ -38,8 +36,21 @@ namespace DvD_Dev
             InitializeSceneView();
 
             pathFinder = new PathFinder(ref MySceneView);
+
+            ClickDefaultButtons();
         }
 
+        public void ClickDefaultButtons()
+        {
+            show_bounding_box.IsChecked = true;
+            ShowBoundingBox(new object(), new RoutedEventArgs());
+
+            show_drone_path.IsChecked = true;
+            ShowPath(new object(), new RoutedEventArgs());
+
+            show_camera_footprint.IsChecked = true;
+            ShowFootprint(new object(), new RoutedEventArgs());
+        }
         private void InitializeSceneView()
         {
             Scene myScene = new Scene(Basemap.CreateTopographic());
@@ -58,14 +69,54 @@ namespace DvD_Dev
             MySceneView.GraphicsOverlays.Add(overlay);
         }
 
-        //When map is loaded(navigated to), set the starting location of the map
-        override
-        protected async void OnNavigatedTo(NavigationEventArgs e)
+        public async void UploadShapefile(object sender, RoutedEventArgs r)
         {
-            pathFinder.ReadInput();
+            await pathFinder.ReadShapefile();
+        }
 
-            
+        public async void DeserializeOctree(object sender, RoutedEventArgs r)
+        {
+            await pathFinder.DeserializeWorld();
+        }
 
+        public async void SerializeOctree(object sender, RoutedEventArgs r)
+        {
+            await pathFinder.SerializeWorld();
+        }
+
+        public async void ShowMesh(object sender, RoutedEventArgs r)
+        {
+            pathFinder.ShowMesh();
+        }
+
+        public async void ShowMeshNormals(object sender, RoutedEventArgs r)
+        {
+            pathFinder.ShowMeshNormals();
+        }
+
+        public async void ShowBoundingBox(object sender, RoutedEventArgs r)
+        {
+            pathFinder.ShowBoundingBox();
+        }
+
+        public async void ShowPath(object sender, RoutedEventArgs r)
+        {
+            pathFinder.ShowPath();
+        }
+
+        public async void ShowFootprint(object sender, RoutedEventArgs r)
+        {
+            pathFinder.ShowFootprint();
+        }
+
+        public async void ShowOctreeNodes(object sender, RoutedEventArgs r)
+        {
+            pathFinder.ShowOctreeNodes();
+        }
+
+        public async void ShowGraph(object sender, RoutedEventArgs r)
+        {
+            pathFinder.ShowGraph();
         }
 
         private void SceneView_Tapped(object sender, GeoViewInputEventArgs e)
@@ -100,21 +151,9 @@ namespace DvD_Dev
 
             MySceneView.Camera.MoveTo(tappedPoint);
 
-
-            System.Diagnostics.Debug.WriteLine("Projected point: <" + projectedPoint.X + ", " + projectedPoint.Y + ", " + projectedPoint.Z + "> with spatial ref " + PathFinder.spatialRef.WkText);
-            await pathFinder.InitPathFinder(projectedPoint);
-
-            //Show different types of intermediate data structures (for testing/debugging)
-            //Uncomment as neccessary
-            //pathFinder.DisplayMesh();
-            //pathFinder.DisplayMeshNormals();
-            //pathFinder.DisplayOctreeNodes();
-            //pathFinder.DisplayOctreeBlockedNodes();
-           pathFinder.DisplayGraphNodes();
-           // pathFinder.DisplayPath();
-            //pathFinder.DisplayFootprintCoverage();
-            pathFinder.DisplayOctreeBoundingBox();
-            pathFinder.DisplayDimensionBoundingBox(200);
+            int fieldDimM = int.Parse(fieldDimInput.Text);
+            await pathFinder.GenerateWorld(projectedPoint, fieldDimM);
+            pathFinder.ShowBoundingBox();
         }
     }
 }

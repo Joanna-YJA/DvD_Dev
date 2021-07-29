@@ -1,6 +1,5 @@
 ﻿using Esri.ArcGISRuntime.Data;
 using Esri.ArcGISRuntime.Geometry;
-using ArcGisGeometry = Esri.ArcGISRuntime.Geometry.Geometry;
 using Esri.ArcGISRuntime.Mapping;
 using Esri.ArcGISRuntime.Mapping.Labeling;
 using Esri.ArcGISRuntime.Ogc;
@@ -10,25 +9,31 @@ using Esri.ArcGISRuntime.UI.Controls;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.IO;
 using NetTopologySuite.IO.Streams;
-using NetTopologySuite.Mathematics;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Pickers;
+using ArcGisGeometry = Esri.ArcGISRuntime.Geometry.Geometry;
 using AttributesTable = NetTopologySuite.Features.AttributesTable;
-using Colors = System.Drawing.Color;
 using Feature = NetTopologySuite.Features.Feature;
 using Geometry = NetTopologySuite.Geometries.Geometry;
-using Esri.ArcGISRuntime.Geometry;
 
 namespace DvD_Dev
 {
     class PathFinder
     {
+        StorageFile[] targetFiles;
+
+        //test
+        public static Esri.ArcGISRuntime.Geometry.Envelope env;
+
+        Octree space;
         public World shipWorld;
         Commanding command;
         SpaceUnit racingDrone;
@@ -48,15 +53,14 @@ namespace DvD_Dev
 
         int octreeLevel = 8; // the center point in space of the 3D cube to construct the octree from
         float shipSize = .5f; // this is used to calculate ext, which is the extension of buffer space around buildings to reduce collisions
-        float dimensions = 200; // Should not be changed. Dimensions in Unity units of the volume to be constructed in octree
-
-        Vector3 originalRefPos = new Vector3(57.49f, 1.5f, 142.57f);
-        Vector3 centerOfMap = new Vector3(29590.69f, 31892.40f, 10);
+        int octreeDimM = 200;
 
         public List<Mesh> meshes = new List<Mesh>();
+        public static List<ArcGisGeometry> flatGeometries = new List<ArcGisGeometry>();
         List<MapPoint> points;
 
-        bool isDisplayPath = false, isDisplayCoverage = false;
+        bool showMesh, showMeshNormals, showBoundingBox, showOctree, showOctreeBlockedNodes, showGraph, showPath, showFootprint;
+        public static int fieldDimM = 200;
 
         static SimpleLineSymbol boxOutlineSymbol = new SimpleLineSymbol(SimpleLineSymbolStyle.Dash, Color.Gray, 2);
         static SimpleMarkerSymbol centerPointSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.Cross, Color.Gray, 10);
@@ -122,20 +126,14 @@ namespace DvD_Dev
         }
         public PathFinder(ref SceneView sceneView)
         {
-            footprintCalc = new FootprintCalculator();
-
             this.sceneView = sceneView;
             pathOverlay = new GraphicsOverlay();
             pathOverlay.SceneProperties.SurfacePlacement = SurfacePlacement.Absolute;
             sceneView.GraphicsOverlays.Add(pathOverlay);
         }
-        public async Task InitPathFinder(MapPoint center)
-        {
-            LoadScene(meshes, center, octreeLevel, shipSize);
-            LinkShip();
-        }
 
-        public async Task ReadInput()
+
+        public async Task ReadShapefile()
         {
             FolderPicker picker = new FolderPicker();
             picker.ViewMode = PickerViewMode.List;
@@ -145,7 +143,7 @@ namespace DvD_Dev
             if (folder != null)
             {
                 IReadOnlyList<StorageFile> files = await folder.GetFilesAsync();
-                StorageFile[] targetFiles = new StorageFile[4];
+                this.targetFiles = new StorageFile[4];
                 foreach (StorageFile file in files)
                 {
 
@@ -162,6 +160,8 @@ namespace DvD_Dev
                     {
                         StorageFile newFile = await ApplicationData.Current.TemporaryFolder.CreateFileAsync(targetFiles[i].Name, CreationCollisionOption.ReplaceExisting);
                         await targetFiles[i].CopyAndReplaceAsync(newFile);
+
+                        targetFiles[i] = newFile;
                         if (i == 0) shpFilePath = newFile.Path;
                     }
                     else throw new Exception("Some files in the shapefile are missing.");
@@ -176,16 +176,116 @@ namespace DvD_Dev
                 };
 
                 layer.Renderer = renderer;
-                layer.LabelDefinitions.Add(heightLabelDef);
+               // layer.LabelDefinitions.Add(heightLabelDef);
                 layer.LabelsEnabled = true;
 
                 sceneView.Scene.OperationalLayers.Add(layer);
 
-                await GenerateMeshes(targetFiles[0], targetFiles[1]);
+
+
             }
             else throw new FileNotFoundException("Folder not found.");
         }
 
+        public async Task DeserializeWorld()
+        {
+            FileOpenPicker picker = new FileOpenPicker();
+            picker.ViewMode = PickerViewMode.List;
+            picker.FileTypeFilter.Add(".json");
+
+            SpatialReferenceConverter conv = new SpatialReferenceConverter();
+            JsonSerializer serializer = JsonSerializer.Create(new JsonSerializerSettings
+            {
+                PreserveReferencesHandling = PreserveReferencesHandling.Objects,
+                Formatting = Formatting.Indented,
+                TypeNameHandling = TypeNameHandling.Auto,
+                ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
+                ObjectCreationHandling = ObjectCreationHandling.Auto,
+            });
+            serializer.Converters.Add(conv);
+
+            StorageFile worldFile = await picker.PickSingleFileAsync();
+            if (worldFile != null)
+            {
+                using (var inputStream = await worldFile.OpenReadAsync())
+                using (var classicStream = inputStream.AsStreamForRead())
+                using (var streamReader = new StreamReader(classicStream))
+                {
+                    shipWorld = (World)serializer.Deserialize(streamReader, typeof(World));
+                }
+
+                //shipWorld.allocateArcs();
+                if (showOctree)
+                    shipWorld.space.DisplayOctreeNodes(ref octreeOverlay);
+            }
+            else
+            {
+                throw new FileNotFoundException("Could not locate .json file of Octree to deserialize");
+            }
+        }
+
+        public async Task SerializeWorld()
+        {
+            FolderPicker picker = new FolderPicker();
+            picker.ViewMode = PickerViewMode.List;
+            picker.FileTypeFilter.Add("*");
+
+            JsonSerializer serializer = JsonSerializer.Create(new JsonSerializerSettings
+            {
+                ContractResolver = CustomVector3ContractResolver.Instance,
+                PreserveReferencesHandling = PreserveReferencesHandling.Objects,
+                Formatting = Formatting.Indented
+            }
+);
+
+            StorageFolder folder = await picker.PickSingleFolderAsync();
+
+
+
+            if (folder != null)
+            {
+                StorageFile octreeFile = await folder.CreateFileAsync("World.json", CreationCollisionOption.ReplaceExisting);
+
+                using (var inputStream = await octreeFile.OpenAsync(FileAccessMode.ReadWrite))
+                using (var classicStream = inputStream.AsStreamForWrite())
+                using (var streamWriter = new StreamWriter(classicStream))
+                {
+                    serializer.Serialize(streamWriter, shipWorld);
+
+                }
+            }
+            else
+            {
+                throw new FileNotFoundException("Could not locate .json file of Octree to deserialize");
+            }
+        }
+
+        public async Task GenerateWorld(MapPoint center, int fieldDimM)
+        {
+            PathFinder.fieldDimM = fieldDimM;
+
+            if (space == null && targetFiles == null)
+                throw new ArgumentException("Either the Shapefile or Octree Json must be uploaded");
+            else if (space == null)
+                await GenerateMeshes(targetFiles[0], targetFiles[1]);
+
+            LoadScene(center, octreeLevel, shipSize);
+            space = shipWorld.space;
+            LinkShip();
+
+            if (showOctree)
+                shipWorld.space.DisplayOctreeNodes(ref octreeOverlay);
+            else if (showOctreeBlockedNodes)
+                shipWorld.space.DisplayOctreeBlockedNodes(ref octreeOverlay);
+
+            if (showGraph)
+                shipWorld.spaceGraph.DisplayGraphNodes(ref graphOverlay, space);
+            if (showBoundingBox)
+            {
+                DisplayBothBoundingBox();
+            }
+
+        }
 
         public async Task GenerateMeshes(StorageFile shpFile, StorageFile dbfFile)
         {
@@ -222,6 +322,15 @@ namespace DvD_Dev
 
                         double h = (double)attributesTable["HEIGHT"];
 
+
+                        //Create ArcGis Geometry
+                        List<MapPoint> geomVertices = new List<MapPoint>();
+                        foreach (Coordinate geomCoord in geometry.Coordinates)
+                        {
+                            geomVertices.Add(new MapPoint(geomCoord.X, geomCoord.Y, geomCoord.Z, spatialRef));
+                        }
+                        flatGeometries.Add(new Esri.ArcGISRuntime.Geometry.Polygon(geomVertices));
+
                         Mesh mesh = new Mesh(geometry, h, spatialRef);
                         meshes.Add(mesh);
                     }
@@ -229,6 +338,18 @@ namespace DvD_Dev
                     reader.Close();
                     reader.Dispose();
                 }
+            }
+
+            if (showMesh)
+            {
+                foreach (Mesh mesh in meshes)
+                    mesh.DisplayMesh(ref meshOverlay);
+            }
+
+            if (showMeshNormals)
+            {
+                foreach (Mesh mesh in meshes)
+                    mesh.DisplayMeshNormals(ref meshOverlay);
             }
         }
 
@@ -238,17 +359,15 @@ namespace DvD_Dev
         }
 
         // Construct an Octree from the loaded scene
-        public void LoadScene(List<Mesh> meshes, MapPoint center, int octreeLevels, float shipSize)
+        public void LoadScene(MapPoint center, int octreeLevels, float shipSize)
         {
             racingDrone = new SpaceUnit();
             float ext = MathF.Max(shipSize - 16f / (1 << 8) * MathF.Sqrt(3) / 2, 0);
             racingDrone.ext = ext;
 
-            Vector3 centerMap = new Vector3((float) center.X/10, (float) center.Y/10, (float) center.Z/10);
-            System.Diagnostics.Debug.WriteLine("center of map " + centerMap);
-            // Coordinate testCord =  new CoordinateZ(11557028.5197362 / 10, 150832.223844404 / 10, 0);
+            Vector3 centerMap = new Vector3((float)center.X / 10, (float)center.Y / 10, (float)center.Z / 10);
 
-            shipWorld = new World(ref sceneView, meshes, dimensions, centerMap, octreeLevels, 0.5f, true, Graph.GraphType.CORNER);
+            shipWorld = new World(ref sceneView, spatialRef, meshes, octreeDimM, centerMap, octreeLevels, 0.5f, true, Graph.GraphType.CORNER);
 
             command = new Commanding(ref sceneView, shipWorld);
         }
@@ -257,34 +376,41 @@ namespace DvD_Dev
         {
             Vector3 localSrc = Vector3.Zero, localDest = Vector3.Zero;
             ConvertToLocal(sourceDest, ref localSrc, ref localDest);
-           // command.ConvertToAvailPoints(ref localSrc, ref localDest);
-            System.Diagnostics.Debug.WriteLine("Final changed dest " + localDest);
 
             double timeLimitMin = 30, avrSpeedMph = 31;
-            double targetDistM = (timeLimitMin/60) * (avrSpeedMph * 1609.34);
+            double targetDistM = (timeLimitMin / 60) * (avrSpeedMph * 1609.34);
             double distanceM = double.MaxValue, altitudeM = 20;
+
+            int numSpiralPoints = 0;
+
 
             while (distanceM > targetDistM)
             {
-                System.Diagnostics.Debug.WriteLine("Actual distance > target Dist with altitude " + altitudeM + " distance " + distanceM + " target dist " + targetDistM);
-                FootprintCalculator fpCalc = new FootprintCalculator(++altitudeM);
+                footprintCalc = new FootprintCalculator(++altitudeM);
                 points = new List<MapPoint>();
-                SearchInSpiral(localDest, fpCalc);
+                command.SearchInSpiral(ref points, localDest, footprintCalc);
+                numSpiralPoints = points.Count;
 
-                Vector3 localStart = new Vector3((float) points[0].X / 10, (float) points[0].Y / 10f, (float) points[0].Z / 10f);
-               // MoveToCoords(localSrc, localStart);
-                Polyline path = new Polyline(points);
-                ArcGisGeometry densifiedPath = GeometryEngine.DensifyGeodetic(path, 1, LinearUnits.Meters, GeodeticCurveType.Geodesic);
-                distanceM = GeometryEngine.LengthGeodetic(densifiedPath, LinearUnits.Meters, GeodeticCurveType.Geodesic);
+                Vector3 localStart = new Vector3((float)points[1].X / 10, (float)points[1].Y / 10f, (float)points[1].Z / 10f);
+                MoveToCoords(localSrc, localStart);
+                //test
+                List<MapPoint> nonNullPoints = new List<MapPoint>();
+                foreach (MapPoint p in points)
+                    if (p != null)
+                        nonNullPoints.Add(p);
+                Polyline path = new Polyline(nonNullPoints);
+               // ArcGisGeometry densifiedPath = GeometryEngine.DensifyGeodetic(path, 1, LinearUnits.Meters, GeodeticCurveType.Geodesic);
+                distanceM = GeometryEngine.LengthGeodetic(path, LinearUnits.Meters, GeodeticCurveType.Geodesic);
             }
-            System.Diagnostics.Debug.WriteLine("Actual distance < target Dist with altitude " + altitudeM + " distance " + distanceM + " target dist " + targetDistM);
-            if (isDisplayPath) command.ShowPath(ref points, pathOverlay);
-            if (isDisplayCoverage)
+
+            if (showPath) command.ShowPath(ref points, pathOverlay);
+            if (showFootprint)
             {
-                footprintCalc.ShowFootprintCoverage(ref points, pathOverlay);
-                footprintCalc.ShowSeperateFootprint(ref points, pathOverlay);
+                int firstSpiralPt = points.Count - numSpiralPoints;
+                footprintCalc.ShowFootprintCoverage(points.GetRange(firstSpiralPt, numSpiralPoints), pathOverlay);
+                //footprintCalc.ShowSeperateFootprint(points.Skip(points.Count - numSpiralPoints), pathOverlay);
             }
-            WriteToKml();
+           // WriteToKml();
         }
 
         public async void WriteToKml()
@@ -308,7 +434,7 @@ namespace DvD_Dev
             foreach (MapPoint p in points)
                 if (p != null) nonNullPoints.Add(p);
 
-            for(int i = 0; i < nonNullPoints.Count; i += 99)
+            for (int i = 0; i < nonNullPoints.Count; i += 99)
             {
                 ArcGisGeometry line = (ArcGisGeometry)new Polyline(
                                         nonNullPoints.GetRange(i, Math.Min(nonNullPoints.Count - i, 99)));
@@ -322,7 +448,7 @@ namespace DvD_Dev
             FileSavePicker savePicker = new FileSavePicker();
             savePicker.SuggestedStartLocation = PickerLocationId.Downloads;
             savePicker.FileTypeChoices.Add("KMZ file", new List<string>() { ".kmz" });
-            Windows.Storage.StorageFile file = await savePicker.PickSaveFileAsync();
+            StorageFile file = await savePicker.PickSaveFileAsync();
 
             if (file != null)
             {
@@ -333,11 +459,10 @@ namespace DvD_Dev
                         // Write the KML document to the stream of the file.
                         await kmlDoc.WriteToAsync(stream);
                     }
-                    System.Diagnostics.Debug.WriteLine("Item saved.");
                 }
                 catch
                 {
-                    System.Diagnostics.Debug.WriteLine("File not saved.");
+                   throw new FileNotFoundException("File not saved.");
                 }
             }
         }
@@ -346,13 +471,11 @@ namespace DvD_Dev
         {
             float srcX = Convert.ToSingle(sourceDest[0].X) / 10,
                  srcY = Convert.ToSingle(sourceDest[0].Y) / 10,
-                 //srcZ = Convert.ToSingle(sourceDest[0].Z) / 10;
                  srcZ = 20f / 10;
             localSrc = new Vector3(srcX, srcY, srcZ);
 
             float destX = Convert.ToSingle(sourceDest[1].X) / 10,
                 destY = Convert.ToSingle(sourceDest[1].Y) / 10,
-                 // destZ = Convert.ToSingle(sourceDest[1].Z) / 10;
                  destZ = 20f / 10;
             localDest = new Vector3(destX, destY, destZ);
         }
@@ -362,11 +485,6 @@ namespace DvD_Dev
         {
             racingDrone.position = racingDrone.standPoint = localSrc;
             command.MoveOrder(localDest, ref points);
-        }
-
-        public void SearchInSpiral(Vector3 localDest, FootprintCalculator fpCalc)
-        {
-            command.SearchInSpiral(ref points, localDest, fpCalc);
         }
 
         public static List<float> ConvertLocalToLatLon(float x, float z)
@@ -390,7 +508,7 @@ namespace DvD_Dev
             command.activeUnits.Add(racingDrone);
         }
 
-        public void DisplayMesh()
+        public void ShowMesh()
         {
             if (meshOverlay == null)
             {
@@ -399,11 +517,10 @@ namespace DvD_Dev
                 sceneView.GraphicsOverlays.Add(meshOverlay);
             }
 
-            foreach (Mesh mesh in meshes)
-                mesh.DisplayMesh(ref meshOverlay);
+            showMesh = true;
         }
 
-        public void DisplayMeshNormals()
+        public void ShowMeshNormals()
         {
             if (meshOverlay == null)
             {
@@ -412,11 +529,22 @@ namespace DvD_Dev
                 sceneView.GraphicsOverlays.Add(meshOverlay);
             }
 
-            foreach (Mesh mesh in meshes)
-                mesh.DisplayMeshNormals(ref meshOverlay);
+            showMeshNormals = true;
         }
 
-        public void DisplayOctreeBlockedNodes()
+        public void ShowPath()
+        {
+            if (pathOverlay == null)
+            {
+                pathOverlay = new GraphicsOverlay();
+                pathOverlay.SceneProperties.SurfacePlacement = SurfacePlacement.Absolute;
+                sceneView.GraphicsOverlays.Add(pathOverlay);
+            }
+
+            showPath = true;
+        }
+
+        public void ShowOctreeBlockedNodes()
         {
             if (octreeOverlay == null)
             {
@@ -425,10 +553,10 @@ namespace DvD_Dev
                 sceneView.GraphicsOverlays.Add(octreeOverlay);
             }
 
-            shipWorld.space.DisplayOctreeBlockedNodes(ref octreeOverlay);
+            showOctreeBlockedNodes = true;
         }
 
-        public void DisplayOctreeNodes()
+        public void ShowOctreeNodes()
         {
             if (octreeOverlay == null)
             {
@@ -437,11 +565,11 @@ namespace DvD_Dev
                 sceneView.GraphicsOverlays.Add(octreeOverlay);
             }
 
-            shipWorld.space.DisplayOctreeNodes(ref octreeOverlay);
+            showOctree = true;
         }
 
 
-        public void DisplayGraphNodes()
+        public void ShowGraph()
         {
             if (graphOverlay == null)
             {
@@ -450,60 +578,24 @@ namespace DvD_Dev
                 sceneView.GraphicsOverlays.Add(graphOverlay);
             }
 
-            shipWorld.spaceGraph.DisplayGraphNodes(ref graphOverlay, shipWorld.space);
+            showGraph = true;
         }
 
-        public void DisplayPath()
+        public void ShowBoundingBox()
         {
-            isDisplayPath = true;
+            showBoundingBox = true;
         }
 
-        public void DisplayBothBoundingBox(int dimensionM)
+        public void DisplayBothBoundingBox()
         {
             DisplayOctreeBoundingBox();
-            DisplayDimensionBoundingBox(dimensionM);
+            DisplayDimensionBoundingBox();
         }
         public void DisplayOctreeBoundingBox()
         {
             List<MapPoint> corners = new List<MapPoint>();
             Vector3 center = shipWorld.space.root.center;
             float r = shipWorld.space.size / 2;
-
-            MapPoint centerPoint = new MapPoint(center.X * 10f, center.Y * 10f, center.Z * 10f, spatialRef);
-            Graphic centerGraphic = new Graphic(centerPoint, centerPointSymbol);
-
-            for(int i = 0; i < 4; i++)
-            {
-                int signY = i < 2 ? 1: -1;
-                int signX = (i == 1 || i == 2)? -1 : 1;
-                corners.Add(new MapPoint((center.X + (r * signX)) * 10f, 
-                                          (center.Y + (r * signY)) * 10f, 
-                                          center.Z * 10f, spatialRef));
-            }
-            corners.Add(corners[0]);
-
-            ArcGisGeometry box = new Polyline(corners);
-            Graphic boxGraphic = new Graphic(box, boxOutlineSymbol);
-
-            if (octreeOverlay == null)
-            {
-                octreeOverlay = new GraphicsOverlay();
-                octreeOverlay.SceneProperties.SurfacePlacement = SurfacePlacement.Absolute;
-                sceneView.GraphicsOverlays.Add(octreeOverlay);
-            }
-
-            octreeOverlay.Graphics.Add(boxGraphic);
-            octreeOverlay.Graphics.Add(centerGraphic);
-        }
-
-        public void DisplayDimensionBoundingBox(int dimensionM)
-        {
-            List<MapPoint> corners = new List<MapPoint>();
-            Vector3 center = shipWorld.space.root.center;
-            float origR = shipWorld.space.size / 2;
-            float r = (dimensionM / 10) / 2; //Check for user error
-            if ((r - origR) > 0.001)
-                throw new ArgumentOutOfRangeException("The dimensions of the field cannot be greater than the size of octree");
 
             MapPoint centerPoint = new MapPoint(center.X * 10f, center.Y * 10f, center.Z * 10f, spatialRef);
             Graphic centerGraphic = new Graphic(centerPoint, centerPointSymbol);
@@ -532,9 +624,51 @@ namespace DvD_Dev
             octreeOverlay.Graphics.Add(centerGraphic);
         }
 
-        public void DisplayFootprintCoverage()
+        public void DisplayDimensionBoundingBox()
         {
-            isDisplayCoverage = true;
+            List<MapPoint> corners = new List<MapPoint>();
+            Vector3 center = shipWorld.space.root.center;
+            float origR = shipWorld.space.size / 2;
+            float r = (fieldDimM / 10) / 2; //trav for user error
+            if ((r - origR) > 0.001)
+                throw new ArgumentOutOfRangeException("The dimensions of the field cannot be greater than the size of octree");
+
+            MapPoint centerPoint = new MapPoint(center.X * 10f, center.Y * 10f, center.Z * 10f, spatialRef);
+            Graphic centerGraphic = new Graphic(centerPoint, centerPointSymbol);
+
+            for (int i = 0; i < 4; i++)
+            {
+                int signY = i < 2 ? 1 : -1;
+                int signX = (i == 1 || i == 2) ? -1 : 1;
+                corners.Add(new MapPoint((center.X + (r * signX)) * 10f,
+                                          (center.Y + (r * signY)) * 10f,
+                                          center.Z * 10f, spatialRef));
+            }
+            corners.Add(corners[0]);
+
+            ArcGisGeometry box = new Polyline(corners);
+            Graphic boxGraphic = new Graphic(box, boxOutlineSymbol);
+
+            ArcGisGeometry geom = new Esri.ArcGISRuntime.Geometry.Polygon(corners);
+            env = geom.Extent;
+       
+            if (octreeOverlay == null)
+            {
+                octreeOverlay = new GraphicsOverlay();
+                octreeOverlay.SceneProperties.SurfacePlacement = SurfacePlacement.Absolute;
+                sceneView.GraphicsOverlays.Add(octreeOverlay);
+            }
+
+            octreeOverlay.Graphics.Add(boxGraphic);
+            octreeOverlay.Graphics.Add(centerGraphic);
+
+            //test
+            //octreeOverlay.Graphics.Add(envGraphic);
+        }
+
+        public void ShowFootprint()
+        {
+            showFootprint = true;
         }
 
     }

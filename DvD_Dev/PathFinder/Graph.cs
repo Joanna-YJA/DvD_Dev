@@ -4,6 +4,7 @@ using Esri.ArcGISRuntime.Mapping;
 using Esri.ArcGISRuntime.Symbology;
 using Esri.ArcGISRuntime.UI;
 using Esri.ArcGISRuntime.UI.Controls;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -16,6 +17,7 @@ namespace DvD_Dev
         public bool visited = false;
         public int index;
         public int connectIndex = 0;
+        [JsonIgnore]
         public List<Arc> arcs;
         public Vector3 center;
 
@@ -68,6 +70,12 @@ namespace DvD_Dev
     }
     class Graph
     {
+        public SpatialReference spatialRef;
+        public void SetSpatialRef(SpatialReference spatialRef)
+        {
+            this.spatialRef = new SpatialReference(spatialRef.WkText);
+        }
+
         public List<Node> nodes;
         public List<Node> temporaryNodes;
         public enum GraphType
@@ -686,12 +694,11 @@ namespace DvD_Dev
 
         public void DisplayGraphNodes(ref GraphicsOverlay overlay, Octree space)
         {
-            System.Diagnostics.Debug.WriteLine("# graph nodes " + nodes.Count);
             for (int i = 0; i < 20000; i++)
             {
                 if (i >= nodes.Count) return;
                 Vector3 center = this.nodes[i].center;
-                MapPoint point = new MapPoint(center.X * 10, center.Y * 10, center.Z * 10, PathFinder.spatialRef);
+                MapPoint point = new MapPoint(center.X * 10, center.Y * 10, center.Z * 10, spatialRef);
                 Graphic node;
                 if(space.IsBlocked(space.PositionToIndex(center), false, false))
                     node = new Graphic(point, blockedNodeSymbol);
@@ -704,8 +711,8 @@ namespace DvD_Dev
 
                     Vector3 to = a.to.center,
                             from = a.from.center;
-                    MapPoint toPoint = new MapPoint(to.X * 10, to.Y * 10, to.Z * 10, PathFinder.spatialRef),
-                             fromPoint = new MapPoint(from.X * 10, from.Y * 10, from.Z * 10, PathFinder.spatialRef);
+                    MapPoint toPoint = new MapPoint(to.X * 10, to.Y * 10, to.Z * 10, spatialRef),
+                             fromPoint = new MapPoint(from.X * 10, from.Y * 10, from.Z * 10, spatialRef);
                     Polyline arc = new Polyline(new List<MapPoint> { toPoint, fromPoint });
                     Graphic arcGraphic = new Graphic(arc, arcSymbol);
                     overlay.Graphics.Add(arcGraphic);

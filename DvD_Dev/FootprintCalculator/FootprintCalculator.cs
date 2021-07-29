@@ -1,16 +1,10 @@
-﻿using DJI.WindowsSDK;
-using Esri.ArcGISRuntime.Geometry;
+﻿using Esri.ArcGISRuntime.Geometry;
 using Esri.ArcGISRuntime.Symbology;
 using Esri.ArcGISRuntime.UI;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-using Windows.Devices.Geolocation;
-using static DvD_Dev.SpatialMath;
 
 namespace DvD_Dev
 {
@@ -27,26 +21,13 @@ namespace DvD_Dev
         private static double HFVRad;
         private static double VFVRad;
 
-        private float halfHeight;
-        private float halfBase;
+        public float top, bott, left, right;
 
-        private static SimpleLineSymbol rectOutline = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Green, 1.0);
-        private static SimpleFillSymbol seperateRectSymbol = new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, Color.Green, rectOutline);
+        private static SimpleLineSymbol rectOutline = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.FromArgb(48, 0, 255, 40), 1.0);
+        private static SimpleFillSymbol seperateRectSymbol = new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, Color.FromArgb(48, 0, 255, 40), rectOutline);
 
-        private static SimpleLineSymbol pathOutline = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.LightGreen, 1.0);
-        private static SimpleFillSymbol pathSymbol = new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, Color.LightGreen, pathOutline);
-
-
-        public FootprintCalculator()
-        {
-            yawRad = LimitToRange(yawRad, -80, 80);
-            pitchRad = LimitToRange(pitchRad, -80, 80);
-
-            HFVRad = FindHFV();
-            VFVRad = FindVFV();
-
-            FindFootprintDimensions();
-        }
+        private static SimpleLineSymbol pathOutline = new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.FromArgb(255, 211, 205, 23), 1.0);
+        private static SimpleFillSymbol pathSymbol = new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, Color.FromArgb(54, 255, 247, 0), pathOutline);
 
         public FootprintCalculator(double altitudeM)
         {
@@ -83,126 +64,209 @@ namespace DvD_Dev
         {
             double angleR = yawRad + 0.5 * HFVRad;
             double angleL = yawRad - 0.5 * HFVRad;
-            float fpBase = (float)( altitudeM * (Math.Tan(angleR) - Math.Tan(angleL)) );
-            halfBase = fpBase / 2;
+            right = (float)(altitudeM * Math.Tan(angleR));
+            right = Math.Abs(right);
+            left = (float)(altitudeM * Math.Tan(angleL));
+            left = Math.Abs(left);
 
-            double angleU = pitchRad + 0.5 * VFVRad;
-            double angleD = pitchRad - 0.5 * VFVRad;
-            float fpHeight = (float)(altitudeM * (Math.Tan(angleU) - Math.Tan(angleD)));
-            halfHeight = fpHeight / 2;
+            double angleT = pitchRad + 0.5 * VFVRad;
+            double angleB = pitchRad - 0.5 * VFVRad;
+            top = (float)(altitudeM * Math.Tan(angleT));
+            top = Math.Abs(top);
+            bott = (float)(altitudeM * Math.Tan(angleB));
+            bott = Math.Abs(bott);
         }
 
-        public List<MapPoint> FindFootprintInnerSide(ref List<MapPoint> points)
+        public List<MapPoint> FindFootprintInnerSide(List<MapPoint> points)
         {
-            List<MapPoint> OneSideList = new List<MapPoint>();
+            List<MapPoint> oneSideList = new List<MapPoint>();
+            MapPoint p, innerSide;
 
-            MapPoint curr = points[0];
-            MapPoint innerSide = new MapPoint(curr.X - halfBase, curr.Y - halfHeight, 0, PathFinder.spatialRef);
-            OneSideList.Add(innerSide);
-
-            int signY = -1, signX = 1;
-            bool nextToChangeY = false;
-            foreach (MapPoint p in points.GetRange(1, points.Count - 1))
+            int j = points.Count - 1;
+            while(points[j] != null)
             {
-                innerSide = new MapPoint(p.X + (signX * halfBase), p.Y + (signY * halfBase), p.Z, PathFinder.spatialRef); //TODO
-                OneSideList.Add(innerSide);
-
-                if (nextToChangeY) signY *= -1;
-                else signX *= -1;
-                nextToChangeY = !nextToChangeY;
+                p = points[j];
+                innerSide = new MapPoint(p.X + right, p.Y - bott, 0.01, PathFinder.spatialRef);
+                oneSideList.Add(innerSide);
+                j--;
             }
 
-            //In the inner side of the coverage area, the last point is special case
-            MapPoint last = OneSideList.Last();
-            last = new MapPoint(last.X -  halfBase * 2, last.Y, last.Z, last.SpatialReference);
-            OneSideList.Add(last);
+            int signX = 1, signY = -1;
+            float xChange = right, yChange = right;
+            bool nextToChangeX = true;
+            for(int i = j - 1; i >= 0; i--)
+            {
+                p = points[i];
+                if(p == null)
+                {
+                    if (nextToChangeX) signX *= -1;
+                    else signY *= -1;
 
-            return OneSideList;
+                    nextToChangeX = !nextToChangeX;
+                } else
+                {
+                    innerSide = new MapPoint(p.X + (signX * xChange), p.Y + (signY * yChange), 0.01, PathFinder.spatialRef);                                                                                                              //test
+                    oneSideList.Add(innerSide);
+                }
+            }
+            return oneSideList;
         }
 
-        public Stack<MapPoint> FindFootprintOuterSide(ref List<MapPoint> points)
+        public Stack<MapPoint> FindFootprintOuterSide(List<MapPoint> points)
         {
-            Stack<MapPoint> OtherSideStack = new Stack<MapPoint>();
+            Stack<MapPoint> otherSideStack = new Stack<MapPoint>();
+            MapPoint p, outerSide;
 
-            int signY = 1, signX = -1;
-            bool nextToChangeY = false;
-
-            MapPoint curr = points[0];
-            MapPoint outerSide = new MapPoint(curr.X - halfBase, curr.Y - halfHeight, curr.Z, PathFinder.spatialRef); //Todo
-            OtherSideStack.Push(outerSide);
-
-            foreach (MapPoint p in points.GetRange(1, points.Count - 1))
+            int j = points.Count - 1;
+            while (points[j] != null)
             {
-                outerSide = new MapPoint(p.X + (signX * halfBase), p.Y + (signY * halfBase), p.Z, PathFinder.spatialRef); //TODO change coverage height
-                OtherSideStack.Push(outerSide);
-
-                if (nextToChangeY) signY *= -1;
-                else signX *= -1;
-                nextToChangeY = !nextToChangeY;
+                p = points[j];
+                outerSide = new MapPoint(p.X - left, p.Y - bott, 0.01, PathFinder.spatialRef);
+                otherSideStack.Push(outerSide);
+                j--;
             }
 
-            // DrawFigure(new List<Vector3>(OtherSideStack), Color.FromArgb(255, 0, 0, 255));
-            return OtherSideStack;
+            int signX = -1, signY = 1;
+            float xChange = left, yChange = left;
+            bool nextToChangeX = true;
+            for(int i = j - 1; i >= 0; i--)
+            {
+                p = points[i];
+                if(p == null)
+                {
+                    if (nextToChangeX) signX *= -1;
+                    else signY *= -1;
+                    nextToChangeX = !nextToChangeX;
+
+                } else
+                {
+                    outerSide = new MapPoint(p.X + (signX * xChange), p.Y + (signY * yChange), 0.01, PathFinder.spatialRef);
+                    otherSideStack.Push(outerSide);
+                }
+            }
+            return otherSideStack;
         }
 
-        public void ShowFootprintCoverage(ref List<MapPoint> points, GraphicsOverlay overlay)
+        public void ShowFootprintCoverage(List<MapPoint> points, GraphicsOverlay overlay)
         {
-            List<MapPoint> OneSideList = FindFootprintInnerSide(ref points); //new List<Vector3>();  
-            Stack<MapPoint> OtherSideStack = FindFootprintOuterSide(ref points);  //new Stack<Vector3>(); 
+            List<MapPoint> OneSideList = FindFootprintInnerSide(points);  
+            Stack<MapPoint> OtherSideStack = FindFootprintOuterSide(points);  
 
-            // OneSideList.Concat(OtherSideStack);
+            Polyline lineOne = new Polyline(OneSideList);
+            Graphic lineOneGraphic = new Graphic(lineOne, new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Red, 1.0));
+            overlay.Graphics.Add(lineOneGraphic);
+
+            Graphic g = new Graphic(points[points.Count - 3], new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.Square, Color.HotPink, 10));
+            overlay.Graphics.Add(g);
+
+            Polyline lineTwo = new Polyline(OtherSideStack.ToList());
+            Graphic lineTwoGraphic = new Graphic(lineTwo, new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Green, 1.0));
+           overlay.Graphics.Add(lineTwoGraphic);
+
             while (OtherSideStack.Count > 0)
                 OneSideList.Add(OtherSideStack.Pop());
 
             OneSideList.Add(OneSideList.First()); //Add back the first point to form a complete polygon
 
-            Polygon coverage = new Polygon(OneSideList);
+            Geometry coverage = new Polygon(OneSideList);
             Graphic coverageGraphic = new Graphic(coverage, pathSymbol);
             overlay.Graphics.Add(coverageGraphic);
+
+            //Calculate footprint coverage
+            coverage = GeometryEngine.Clip(coverage, PathFinder.env);
+            
+
+            double fieldArea = PathFinder.fieldDimM * PathFinder.fieldDimM;
+            foreach(Geometry obs in PathFinder.flatGeometries)
+            {
+                //Minus the area of each building to find the actual area of field
+                Geometry clippedObs = GeometryEngine.Clip(obs, PathFinder.env);
+                double obsArea = GeometryEngine.Area(clippedObs);
+                fieldArea -= obsArea;
+
+                //Minus the area of coverage that goes above/under the building
+                //As we are not considering coverage of buildings
+                coverage = GeometryEngine.Difference(coverage, clippedObs);
+            }
+
+            double coverageArea = Math.Abs(GeometryEngine.Area(coverage));
+            double percentCovered = coverageArea / fieldArea * 100;
+            percentCovered = Math.Min(100, percentCovered);
+            System.Diagnostics.Debug.WriteLine("% Coverage: " + percentCovered);
         }
 
 
-        public void ShowSeperateFootprint(ref List<MapPoint> points, GraphicsOverlay overlay)
+        public void ShowSeperateFootprint(IEnumerable<MapPoint> points, GraphicsOverlay overlay)
         {
-            Boolean isOrigOrient = true;
-            double yVal, xVal;
+            //Direction[] fourDir = new Direction[] {}
+            //    bool isFirst = false;
+            //    double yVal, xVal;
+            //    Direction dir  
+            //    MapPoint prev = null;
 
-            foreach (MapPoint p in points)
-            {
-                if (isOrigOrient)
-                {
-                    yVal = halfHeight;
-                    xVal = halfBase;
-                }
-                else
-                {
-                    yVal = halfBase;
-                    xVal = halfHeight;
-                }
-                List<MapPoint> fourPoints = new List<MapPoint>();
-                fourPoints.Add(new MapPoint(p.X - xVal, p.Y - yVal, p.Z, PathFinder.spatialRef)); //TODO footprint height change to z = 0
-                fourPoints.Add(new MapPoint(p.X + xVal, p.Y - yVal, p.Z, PathFinder.spatialRef));
-                fourPoints.Add(new MapPoint(p.X + xVal, p.Y + yVal, p.Z, PathFinder.spatialRef));
-                fourPoints.Add(new MapPoint(p.X - xVal, p.Y + yVal, p.Z, PathFinder.spatialRef));
-                fourPoints.Add(fourPoints.First()); //Add back the first point to form a complete polygon
+            //    foreach (MapPoint p in points)
+            //    {
+            //        if (p == null)
+            //        {
+            //            isOrigOrient = !isOrigOrient;
+            //            isFirst = true;
+            //        }
+            //        else
+            //        {
+            //            prev = p;
+            //            List<MapPoint> fourPoints = new List<MapPoint>();
 
-                Polygon rect = new Polygon(fourPoints);
-                Graphic rectGraphic = new Graphic(rect, seperateRectSymbol);
-                overlay.Graphics.Add(rectGraphic);
-                isOrigOrient = !isOrigOrient;
+            //            if (isOrigOrient)
+            //            {
+
+            //                fourPoints.Add(new MapPoint(p.X - xVal, p.Y - yVal, 0, PathFinder.spatialRef)); //TODO footprint height change to z = 0
+            //                fourPoints.Add(new MapPoint(p.X + xVal, p.Y - yVal, 0, PathFinder.spatialRef));
+            //                fourPoints.Add(new MapPoint(p.X + xVal, p.Y + yVal, 0, PathFinder.spatialRef));
+            //                fourPoints.Add(new MapPoint(p.X - xVal, p.Y + yVal, 0, PathFinder.spatialRef));
+            //            }
+            //            else
+            //            {
+
+            //                fourPoints.Add(new MapPoint(p.X - xVal, p.Y - yVal, 0, PathFinder.spatialRef)); //TODO footprint height change to z = 0
+            //                fourPoints.Add(new MapPoint(p.X + xVal, p.Y - yVal, 0, PathFinder.spatialRef));
+            //                fourPoints.Add(new MapPoint(p.X + xVal, p.Y + yVal, 0, PathFinder.spatialRef));
+            //                fourPoints.Add(new MapPoint(p.X - xVal, p.Y + yVal, 0, PathFinder.spatialRef));
+            //            }
+
+            //            fourPoints.Add(fourPoints.First()); //Add back the first point to form a complete polygon
+
+            //            Polygon coverage = new Polygon(fourPoints);
+            //            Graphic graphic = new Graphic(coverage, seperateRectSymbol);
+            //            overlay.Graphics.Add(graphic);
+
+            //            if (isFirst)
+            //            {
+            //                bool opp = !isOrigOrient;
+            //                if (opp)
+            //                {
+            //                    yVal = halfHeight;
+            //                    xVal = halfBase;
+            //                }
+            //                else
+            //                {
+            //                    yVal = halfBase;
+            //                    xVal = halfHeight;
+            //                }
+
+            //                List<MapPoint> oppPoints = new List<MapPoint>();
+            //                oppPoints.Add(new MapPoint(prev.X - xVal, prev.Y - yVal, 0, PathFinder.spatialRef)); //TODO footprint height change to z = 0
+            //                oppPoints.Add(new MapPoint(prev.X + xVal, prev.Y - yVal, 0, PathFinder.spatialRef));
+            //                oppPoints.Add(new MapPoint(prev.X + xVal, prev.Y + yVal, 0, PathFinder.spatialRef));
+            //                oppPoints.Add(new MapPoint(prev.X - xVal, prev.Y + yVal, 0, PathFinder.spatialRef));
+            //                oppPoints.Add(oppPoints.First()); //Add back the first point to form a complete polygon
+
+            //                Polygon oppCoverage = new Polygon(oppPoints);
+            //                Graphic oppGraphic = new Graphic(oppCoverage, seperateRectSymbol);
+            //                overlay.Graphics.Add(oppGraphic);
+            //                isFirst = false;
+            //            }
+            //        }
+            //    }
             }
         }
-
-        public float getHalfBase()
-        {
-            return halfBase;
-        }
-
-        public float getHalfHeight()
-        {
-            return halfHeight;
-        }
-
-
-    }
 }

@@ -85,13 +85,8 @@ namespace DvD_Dev
                 {
                     if (!normalz.ContainsKey(triVerts[j])) normalz[triVerts[j]] = Vector3.Zero;
                     normalz[triVerts[j]] += normal;
-                    //if (triangles[i + j] == 7) 
-                    //    System.Diagnostics.Debug.WriteLine("BEFORE, 3 vertices of tri " + triVerts[0] + " " + triVerts[1] + " " + triVerts[2]
-                    //       + " has normal " + normal + " cumulative normal at 7: " + normals[triangles[i + j]]);
-
                     normals[triangles[i + j]] += normal;
-                    //if (triangles[i + j] == 7)
-                    //    System.Diagnostics.Debug.WriteLine("AFTER, cumulative normal at 7: " + normals[triangles[i + j]]);
+ 
                 }
             }
 
@@ -100,8 +95,6 @@ namespace DvD_Dev
                 normalz[key] = Vector3.Normalize(normalz[key]);
             for(int k = 0; k < normals.Length; k++)
             {
-                //normals[k] = Vector3.Normalize(normals[k]);
-                //System.Diagnostics.Debug.WriteLine("normal: " + normals[v]);
                 normals[k] = normalz[vertices[k]];
             }
 
@@ -174,23 +167,11 @@ namespace DvD_Dev
                 MapPoint first = points[0];
                 points.Add(new MapPoint(first.X, first.Y, first.Z, spatialRef));
                 
-                if (Math.Abs(zvalues[0] - zvalues[1]) < 0.001 && Math.Abs(zvalues[1] - zvalues[2]) < 0.001) {
-                    Polygon poly = new Polygon(points);
-                    graphic = new Graphic(poly, fillSymbol);
-                }
-                else
-                {
+
                     Polyline line = new Polyline(points);
                     graphic = new Graphic(line, fillSymbol);
-                }
                 overlay.Graphics.Add(graphic);       
             }
-
-            Graphic text = new Graphic();
-            text.Symbol = textSymbol;
-            text.Geometry = new MapPoint(vertices[0].X * 10, vertices[0].Y * 10, 200, spatialRef);
-            //overlay.Graphics.Add(text);
-;
         }
 
         public void DisplayMeshNormals(ref GraphicsOverlay overlay)

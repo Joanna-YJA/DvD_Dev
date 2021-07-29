@@ -3,6 +3,7 @@ using Esri.ArcGISRuntime.Mapping;
 using Esri.ArcGISRuntime.Symbology;
 using Esri.ArcGISRuntime.UI;
 using Esri.ArcGISRuntime.UI.Controls;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -13,6 +14,11 @@ namespace DvD_Dev
 {
     class Octree
     {
+        public SpatialReference spatialRef;
+        public void SetSpatialRef(SpatialReference spatialRef)
+        {
+            this.spatialRef = new SpatialReference(spatialRef.WkText);
+        }
         public int maxLevel;
         public Vector3 corner;
         public float size;
@@ -72,7 +78,6 @@ namespace DvD_Dev
         {
             p -= corner;
             float d = cellSize;
-            System.Diagnostics.Debug.WriteLine("Position to index p.Z " + p.Z + " d " + d);
             return new int[] { (int)MathF.Floor(p.X / d), (int)MathF.Floor(p.Y / d), (int)MathF.Floor(p.Z / d) };
         }
         public Vector3 IndexToPosition(int[] gridIndex)
@@ -94,7 +99,7 @@ namespace DvD_Dev
             else return true;
         }
 
-        public bool CheckWithinBounds(Vector3 v, int units)
+        public bool CheckWithinBounds(Vector3 v, float units)
         {
             v -= root.center;
             float r = units / 2;
@@ -110,7 +115,6 @@ namespace DvD_Dev
             int t = 1 << level;
             if (xi >= t || xi < 0 || yi >= t || yi < 0 || zi >= t || zi < 0)
             {
-                System.Diagnostics.Debug.WriteLine("found node is null xi " + xi + " yi " + yi + " zi " + zi + " t " + t);
                 return null;
             }
 
@@ -555,7 +559,6 @@ namespace DvD_Dev
                 dict.Add(key, result);
                 nodes.Add(result);
             }
-            if(result == null) System.Diagnostics.Debug.WriteLine("GetNodeFromDict:  result is null");
             return result;
         }
         private long GetNodeKey(int[] index)
@@ -634,7 +637,6 @@ namespace DvD_Dev
 
         public List<Node> FindBoundingCornerGraphNodes(Vector3 position)
         {
-            System.Diagnostics.Debug.WriteLine("findboundingcornergraphnodes(" + position + ")");
             List<Node> result = new List<Node>();
             OctreeNode node = Find(position);
             if (node != null)
@@ -651,68 +653,10 @@ namespace DvD_Dev
             }
             else
             {
-                // throw new Exception("The source node is null.");
-                System.Diagnostics.Debug.WriteLine("source node is null");
                 return new List<Node>();
             }
             return result;
         }
-
-        //public List<Vector3> OctreeBfs(Vector3 position)
-        //public List<Vector3> OctreeBfs(Vector3 position
-        //{
-        //    System.Diagnostics.Debug.WriteLine("Original pos is " + position);
-        //    Vector3[] arr = new Vector3[] {new Vector3(10, 0, 0), new Vector3(-10, 0, 0),
-        //                                   new Vector3(0, 10, 0), new Vector3(0, -10, 0)};
-        //    List<Vector3> res = new List<Vector3>();
-        //    HashSet<string> set = new HashSet<string>();
-        //    Queue<Vector3> q = new Queue<Vector3>();
-
-        //    q.Enqueue(position);
-        //    set.Add(position.ToString());
-
-        //    test
-        //    int i = 300;
-
-        //    while (q.Count > 0)
-        //    {
-        //        Vector3 curr = q.Dequeue();
-        //        res.Add(curr);
-
-        //        System.Diagnostics.Debug.WriteLine("take out from q: " + curr.ToString());
-        //        foreach (Vector3 v in arr)
-        //        {
-        //            Vector3 neighbor = new Vector3(curr.X, curr.Y, curr.Z);
-        //            neighbor += v;
-        //            Vector3 centredNeighbor = neighbor - root.center;
-        //            float r = root.size / 2; // - root.tolerance; //todo set tolerance
-        //            string neighborStr = neighbor.ToString();
-
-        //            System.Diagnostics.Debug.WriteLine("neighbor " + neighbor + " Str " + neighborStr + " set contains? " + set.Contains(neighborStr));
-        //            if (centredNeighbor.X >= r || centredNeighbor.X < -r || centredNeighbor.Y >= r || centredNeighbor.Y < -r) continue;
-        //            if (!set.Contains(neighborStr)
-        //                && LineOfSight(curr, neighbor, false, false)) //todo
-        //            {
-        //                System.Diagnostics.Debug.WriteLine("neighbor added, neighbor " + neighbor);
-        //                q.Enqueue(neighbor);
-        //                set.Add(neighborStr);
-        //            }
-        //        }
-
-        //        i--;
-        //        if (i < 0) break;
-
-        //    }
-        //    foreach (Vector3 v in res)
-        //        System.Diagnostics.Debug.WriteLine("res: " + v.ToString());
-        //    System.Diagnostics.Debug.WriteLine("#vectors in result: " + res.Count);
-
-        //    foreach (Vector3 v in res)
-        //    {
-
-        //    }
-        //    return res;
-        //}
 
         public void SnapToNearestCell(Vector3 localDest, out int row, out int col, out Vector3 pos)
         {
@@ -748,20 +692,17 @@ namespace DvD_Dev
 
             while ((nextCenter.Z - prevCenter.Z) > 0.001)
             {
-                //System.Diagnostics.Debug.WriteLine("nextCenter: " + nextCenter + " prevCenter: " + prevCenter);
                 if(nextNeighbors == null) nextNeighbors = FindBoundingCornerGraphNodes(nextCenter);
                 else
                 {
                     nextNeighbors = new List<Node>();
                     foreach (Arc a in nextNode.arcs)
                         nextNeighbors.Add(a.to);
-                    //System.Diagnostics.Debug.WriteLine("#nextNeigghbors: " + nextNeighbors.Count);
                 }
 
                 bool isHigherLevel = false;
                 foreach (Node n in nextNeighbors)
                 {
-                    //System.Diagnostics.Debug.WriteLine("in here...");
                     if (n == null) continue;
 
                     if ((n.center.Z - nextCenter.Z) > 0.0001)
@@ -779,24 +720,21 @@ namespace DvD_Dev
             }
 
             if (lastBlockedNode == null) return p.Z;
-            //System.Diagnostics.Debug.WriteLine("Last blocked node is " + lastBlockedNode.center);
             Vector3 aboveBlocked = lastBlockedNode.center;
-            System.Diagnostics.Debug.WriteLine("Normal expansion: " + normalExpansion);
             aboveBlocked.Z += normalExpansion + 0.8f;
-            System.Diagnostics.Debug.WriteLine("next line calls find bounding corner wtih aboveBlocked " + aboveBlocked + " lastBlockedNode " + lastBlockedNode);
+     
             List<Node> bounding = FindBoundingCornerGraphNodes(aboveBlocked);
             float minH = Single.MaxValue;
             foreach(Node n in bounding)
             {
                 if (n == null)
                 {
-                    MapPoint abovePoint = new MapPoint(aboveBlocked.X * 10, aboveBlocked.Y * 10, aboveBlocked.Z * 10, PathFinder.spatialRef);
+                    MapPoint abovePoint = new MapPoint(aboveBlocked.X * 10, aboveBlocked.Y * 10, aboveBlocked.Z * 10, spatialRef);
                     Graphic aboveGraphic = new Graphic(abovePoint, new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.Diamond, Color.DarkGoldenrod, 30));
                     PathFinder.pathOverlay.Graphics.Add(aboveGraphic);
-                    System.Diagnostics.Debug.WriteLine("Returned because n is null, p.Z " + p.Z + " above blocked " + aboveBlocked + " grid index of aboveBlocked " + String.Join(", ", PositionToIndex(aboveBlocked)));
                     return minH;
                 }
-                //System.Diagnostics.Debug.WriteLine("bounding node: " + n.center);
+
                 if ((n.center.Z - aboveBlocked.Z) <= 0.001) continue;
                 else minH = Math.Min(minH, n.center.Z);
             }
@@ -946,7 +884,7 @@ namespace DvD_Dev
                 if (printNodes >= 0 && curr.blocked)
                 {
                     Vector3 center = curr.center;
-                    MapPoint point = new MapPoint(center.X * 10, center.Y * 10, center.Z * 10, PathFinder.spatialRef);
+                    MapPoint point = new MapPoint(center.X * 10, center.Y * 10, center.Z * 10, spatialRef);
                     Graphic graphicWithSymbol = new Graphic(point, blockedNodeSymbol);
                     overlay.Graphics.Add(graphicWithSymbol);
 
@@ -973,7 +911,7 @@ namespace DvD_Dev
                 if (printNodes >= 0)
                 {
                     Vector3 center = curr.center;
-                    MapPoint point = new MapPoint(center.X * 10, center.Y * 10, center.Z * 10, PathFinder.spatialRef);
+                    MapPoint point = new MapPoint(center.X * 10, center.Y * 10, center.Z * 10, spatialRef);
                     Graphic graphicWithSymbol;
                     if (curr.blocked)
                         graphicWithSymbol = new Graphic(point, blockedNodeSymbol);
