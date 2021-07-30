@@ -1,9 +1,6 @@
 ﻿using Esri.ArcGISRuntime.Geometry;
-using Esri.ArcGISRuntime.Mapping;
 using Esri.ArcGISRuntime.Symbology;
 using Esri.ArcGISRuntime.UI;
-using Esri.ArcGISRuntime.UI.Controls;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
