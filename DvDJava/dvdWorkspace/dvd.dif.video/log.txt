@@ -1,3 +1,0 @@
-[15:29:03:334] APP STARTING!!!
-[15:29:09:507] Powered by Luciad. - Version 2018.1.05 - 2019
-[15:29:09:507] LuciadLightspeed development copy licensed to DSTA.
