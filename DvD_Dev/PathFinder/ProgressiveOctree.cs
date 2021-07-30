@@ -26,16 +26,7 @@ namespace DvD_Dev
                         for (int zi = 0; zi < 2; zi++)
                         {
                             int[] newIndex = { index[0] * 2 + xi, index[1] * 2 + yi, index[2] * 2 + zi };
-                           // System.Diagnostics.Debug.WriteLine("New Index is " + String.Join(", ", newIndex));
                             children[xi, yi, zi] = new ProgressiveOctreeNode(level + 1, newIndex, this, (ProgressiveOctree)tree);
-
-                            //if (children[xi, yi, zi].level <= this.level)
-                            //    throw new Exception("Children is not one level greater than parent");
-                            //if (Math.Abs(children[xi, yi, zi].size - this.size) < 0.0000001)
-                            //    throw new Exception("Children does not have a smaller size than parent, children.level " 
-                            //        + children[xi, yi, zi].level + " parent.level " + this.level +
-                            //        " children.size = " + children[xi, yi, zi].tree.size + " / " + (1 << children[xi, yi, zi].level) + " = " + children[xi, yi, zi].size + 
-                            //        " parent.size " + this.tree.size + " / " + (1 << this.level) + " = " + this.size);
                         }
                 if (level != 0)
                 {
@@ -50,7 +41,6 @@ namespace DvD_Dev
                 }
 
             }
-            //else System.Diagnostics.Debug.WriteLine("Children is not null " + string.Join(",", children));
         }
     }
 }
