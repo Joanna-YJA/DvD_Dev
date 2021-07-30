@@ -1,21 +1,13 @@
-﻿using MapPoint = Esri.ArcGISRuntime.Geometry.MapPoint;
-using Polyline = Esri.ArcGISRuntime.Geometry.Polyline;
-using Polygon  = Esri.ArcGISRuntime.Geometry.Polygon;
-using SpatialReference = Esri.ArcGISRuntime.Geometry.SpatialReference;
-using GeometryEngine = Esri.ArcGISRuntime.Geometry.GeometryEngine;
-using LinearUnits = Esri.ArcGISRuntime.Geometry.LinearUnits;
-using GeodeticCurveType = Esri.ArcGISRuntime.Geometry.GeodeticCurveType;
-using Esri.ArcGISRuntime.Symbology;
+﻿using Esri.ArcGISRuntime.Symbology;
 using Esri.ArcGISRuntime.UI;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Triangulate;
-using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Numerics;
-using Esri.ArcGISRuntime.UI.Controls;
-using Esri.ArcGISRuntime.Mapping;
-using System.Linq;
+using MapPoint = Esri.ArcGISRuntime.Geometry.MapPoint;
+using Polyline = Esri.ArcGISRuntime.Geometry.Polyline;
+using SpatialReference = Esri.ArcGISRuntime.Geometry.SpatialReference;
 
 namespace DvD_Dev
 {
