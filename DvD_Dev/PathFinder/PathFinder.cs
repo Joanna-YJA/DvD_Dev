@@ -14,7 +14,6 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 using Windows.Storage;
@@ -46,10 +45,6 @@ namespace DvD_Dev
 
         static ClassBreaksRenderer renderer;
         static LabelDefinition heightLabelDef;
-
-        public static float defaultWaypointSize = 0.2f;
-        public static float referencePointLat = 1.290167f;
-        public static float referencePointLon = 103.8623f;
 
         int octreeLevel = 8; // the center point in space of the 3D cube to construct the octree from
         float shipSize = .5f; // this is used to calculate ext, which is the extension of buffer space around buildings to reduce collisions
@@ -486,17 +481,6 @@ namespace DvD_Dev
         {
             racingDrone.position = racingDrone.standPoint = localSrc;
             command.MoveOrder(localDest, ref points);
-        }
-
-        public static List<float> ConvertLocalToLatLon(float x, float z)
-        {
-            List<float> latLon = new List<float>();
-            float z_dist = z * 10;
-            float x_dist = x * 10;
-            //Convert distance in metres to lat/lon
-            latLon.Add(referencePointLat + z_dist / 30.6f * 0.00027778f);
-            latLon.Add(referencePointLon + x_dist / 30.6f * 0.00027778f);
-            return latLon;
         }
 
         // Allow the ship to be commanded

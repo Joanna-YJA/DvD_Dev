@@ -16,7 +16,6 @@ namespace DvD_Dev
         public bool movable = true;
         public float maxVelocity = 15f; // Bebop max speed is 15m/s
         public float acceleration = 3f;
-        public float defaultWayPointRange = 0.2f;
         public float pathFindingRecheckInterval = 1f;
         [System.NonSerialized]
         public float ext;
