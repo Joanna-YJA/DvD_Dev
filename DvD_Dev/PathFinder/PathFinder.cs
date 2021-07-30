@@ -176,7 +176,8 @@ namespace DvD_Dev
                 };
 
                 layer.Renderer = renderer;
-               // layer.LabelDefinitions.Add(heightLabelDef);
+                layer.LabelDefinitions.Add(heightLabelDef);
+
                 layer.LabelsEnabled = true;
 
                 sceneView.Scene.OperationalLayers.Add(layer);
