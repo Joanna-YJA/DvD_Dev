@@ -98,16 +98,12 @@
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Direction.cs" />
-    <Compile Include="SpatialReferenceConverter.cs" />
-    <Compile Include="Mesh.cs" />
-    <Compile Include="Face.cs" />
-    <Compile Include="Vertex.cs" />
-    <Compile Include="CoordinateTransformationFilter.cs" />
-    <Compile Include="PathFinder\Vector3DExtensions.cs" />
+    <Compile Include="PathFinder\Direction.cs" />
+    <Compile Include="PathFinder\SpatialReferenceConverter.cs" />
+    <Compile Include="PathFinder\Mesh.cs" />
+    <Compile Include="PathFinder\Vertex.cs" />
     <Compile Include="PathFinder\Vector3Extensions.cs" />
     <Compile Include="PathFinder\CustomVector3ContractResolver.cs" />
-    <Compile Include="PathFinder\U.cs" />
     <Compile Include="PathFinder\Serializer.cs" />
     <Compile Include="PathFinder\Octree.cs" />
     <Compile Include="PathFinder\KDTree.cs" />
@@ -117,12 +113,10 @@
     <Compile Include="PathFinder\Graph.cs" />
     <Compile Include="PathFinder\World.cs" />
     <Compile Include="PathFinder\PathFinder.cs" />
-    <Compile Include="Mission.cs" />
     <Compile Include="FootprintCalculator\FootprintCalculator.cs" />
     <Compile Include="Pages\MainPage.xaml.cs">
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>
-    <Compile Include="FootprintCalculator\SpatialMath.cs" />
     <Compile Include="SettingsPage.xaml.cs">
       <DependentUpon>SettingsPage.xaml</DependentUpon>
     </Compile>
