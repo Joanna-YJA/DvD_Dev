@@ -23,18 +23,33 @@ namespace DvD_Dev
     /// </summary>
     sealed partial class App : Application
     {
-        /// <summary>
-        /// Initializes the singleton application object.  This is the first line of authored code
-        /// executed, and as such is the logical equivalent of main() or WinMain().
-        /// </summary>
-        public App()
+        // Connection string for using Windows Authentication.
+        private string connectionString =
+            @"Data Source=YourServerName\SQLEXPRESS;Initial Catalog=NORTHWIND;Integrated Security=SSPI";
+
+        // This is an example connection string for using SQL Server Authentication.
+        // private string connectionString =
+        //     @"Data Source=YourServerName\YourInstanceName;Initial Catalog=DatabaseName; User Id=XXXXX; Password=XXXXX";
+
+        public string ConnectionString { get => connectionString; set => connectionString = value; }
+
+    /// <summary>
+    /// Initializes the singleton application object.  This is the first line of authored code
+    /// executed, and as such is the logical equivalent of main() or WinMain().
+    /// </summary>
+    public App()
         {
             this.InitializeComponent();
             this.Suspending += OnSuspending;
 
             DJISDKManager.Instance.SDKRegistrationStateChanged += Instance_SDKRegistrationEvent;
-            //Replace app key with the real key registered. Make sure that the key is matched with your application's package id.
+            //Replace app
+            //with the real key registered. Make sure that the key is matched with your application's package id.
             DJISDKManager.Instance.RegisterApp("134a0689605a1fdbace699ba");
+
+
+            //Register API Key for ArcGIS Runtime
+            Esri.ArcGISRuntime.ArcGISRuntimeEnvironment.ApiKey = "AAPKad08a7d7e05a43cc85c22e19705d2ab3Y-wbYNV4tavXZlrJaEE7cKdopK1hQGjUTKxv3P9hDFBp0FFkIgdrx75paFTqRBgd";
         }
 
         //Callback of SDKRegistrationEvent
@@ -42,13 +57,13 @@ namespace DvD_Dev
         {
             if (resultCode == SDKError.NO_ERROR)
             {
-                System.Diagnostics.Debug.WriteLine("Register app successfully.");
+                //System.Diagnostics.Debug.WriteLine("Register app successfully.");
 
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine("SDK register failed, the error is: ");
-                System.Diagnostics.Debug.WriteLine(resultCode.ToString());
+                //System.Diagnostics.Debug.WriteLine("SDK register failed, the error is: ");
+                //System.Diagnostics.Debug.WriteLine(resultCode.ToString());
             }
         }
 
