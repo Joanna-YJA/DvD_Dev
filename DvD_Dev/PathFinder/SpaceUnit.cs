@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Numerics;
-using Windows.Devices.Geolocation;
+﻿using System.Numerics;
 
 namespace DvD_Dev
 {
