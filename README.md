@@ -15,9 +15,10 @@
 * Then it spirals inwards towards the last seen location of target drone
 *  As the same time, the drone's camera covers the area on the ground
 *  If there are building/obstacles at any point of the path, it will avoid them
-*  ![image info](./docs/images/solution_overview.png)
 
-##### Solution Part 1: Setting Spiral Corners
+ ![image info](./docs/images/solution_overview.png)
+
+## Solution Part 1: Setting Spiral Corners
 * The horizontal/vertical increment of the spiral is based on the area of camera footprint at each vertice 
 ![image info](./docs/images/spiral_increment.png)
 * To ensure that there is little overlap in the footprint,  the footprint is calculated based on
@@ -28,7 +29,7 @@
     
 ![image info](./docs/images/camera_footprint.png)
 
-##### Solution Part 2: Avoid Obstacles
+## Solution Part 2: Avoid Obstacles
 * There might be obstacles on the path between one spiral corner and the next
 * 3D pathfinding to find the path
 * 3D Pathfinding: *Lazy Theta**
@@ -43,17 +44,24 @@
 * Hence, all shapefile polygons needs to be converted to 3D Mesh
 * The Graph is build by adding arcs to the Octree
 * Octree + Graph = World object
+
 ![image info](./docs/images/pathfinding_components.png)
+
 
 > **Build Mesh**
 > 1. Each shapefile polygon → Read as a feature
 > 2. Delaunay triangulation is called on each feature
+> 
 > ![image info](./docs/images/2d_mesh.png)
+> 
 > 3. All vertices are extruded to 3D
+> 
 > ![image info](./docs/images/3d_mesh.png)
+> 
 > 4. Normals are calculated based on the normal of each triangle
 Triangle Vertices + Normals = Mesh
-![image info](./docs/images/mesh_normals.gif)
+>
+>![image info](./docs/images/mesh_normals.gif)
 
 * *Lazy Theta** is run to obtain 3D path from point to point
 * When an obstacle is encountered, it can:
@@ -64,11 +72,13 @@ Triangle Vertices + Normals = Mesh
 1. Going above building
     * Short (10 - 20m) OR large area
     * Buffer between drone & top of building
+
 ![image info](./docs/images/going_above.png)
 
 2. Going around building
     * Tall (> 30m) OR small area
     * Buffer between drone & side of building
+    
 ![image info](./docs/images/going_around.png)
 
 ## Setup Instructions
@@ -101,11 +111,13 @@ Triangle Vertices + Normals = Mesh
 1. Import shapefile
     * Represent obstacles
     * Obstacle height = HEIGHT attr.
+    
    ![image info](./docs/images/import_shp.png)
 
 2. Double click to generate mesh
    * Mesh is used to create octree & graph
    * Octree & graph is centred at clicked point
+   
    ![image info](./docs/images/generate_mesh.png)
 
 3. Initialise start & last seen location
@@ -118,7 +130,9 @@ Triangle Vertices + Normals = Mesh
 6. Import file into drone controller app (DJI Pilot) as mission
 7. Execute drone mission 
 8. Drone executes the path autonomously (DJI Phantom 3)
-       ![image info](./docs/images/dji_pilot_ui.png)
+
+ ![image info](./docs/images/dji_pilot_ui.png)
+       
        The DJI Pilot Interface when a drone mission is executing
 
 ### Additional Features
@@ -128,9 +142,11 @@ Triangle Vertices + Normals = Mesh
 * Do it only once ✔
 
 1. Serialize World object
+
     ![image info](./docs/images/serialize.gif)
 
 2. Deserialize World object
+
     ![image info](./docs/images/deserialize.gif)
 
 ### Visualisation Modes
@@ -147,6 +163,7 @@ Triangle Vertices + Normals = Mesh
 
 * Camera footprint
     * Yellow Highlight: Region of camera footprint
+    
     ![image info](./docs/images/footprint.png)
 
 * Mesh + Mesh Normals
