@@ -1,10 +1,10 @@
-﻿# Drone Versus Drone: Drone Searching
+﻿#Drone Searching
 
 ## Introduction
 #### Problem Statement
-* To quickly search in a x by x area for target drone using a drone
+* To quickly search in a x by x area for an object of interest using a drone
 * Drone is situated at a start location
-* The last seen location of the target drone is given
+* The last seen location of the object of interest is given (this object may move around in the sky)
 * Search area is also given 
     * avoid obstacles/buildings
     * cover the entire area 
@@ -12,7 +12,7 @@
 
 #### Solution Overview
 * Drone flies form start location to edge of field
-* Then it spirals inwards towards the last seen location of target drone
+* Then it spirals inwards towards the last seen location of the object of interest
 *  As the same time, the drone's camera covers the area on the ground
 *  If there are building/obstacles at any point of the path, it will avoid them
 
@@ -124,7 +124,7 @@ Triangle Vertices + Normals = Mesh
 4. Program generates deconflicted spiral path
     ![image info](./docs/images/initialise_loc.gif)
 
-5. Drone covergae is output in the console as a percentage of total area (excl. area occupied by buildings)
+5. Drone coverage is output in the console as a percentage of total area (excl. area occupied by buildings)
 
 5. Export path waypoints as file (KML File)
 6. Import file into drone controller app (DJI Pilot) as mission
